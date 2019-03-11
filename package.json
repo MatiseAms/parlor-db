@@ -1,25 +1,29 @@
 {
-  "name": "parlor-db",
-  "version": "1.0.0",
-  "description": "Database of Parlor",
-  "main": "index.js",
-  "scripts": {
-    "dev": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dipsaus9/parlor-db.git"
-  },
-  "author": "dipsaus9",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/dipsaus9/parlor-db/issues"
-  },
-  "homepage": "https://github.com/dipsaus9/parlor-db#readme",
-  "devDependencies": {
-    "eslint": "^5.15.1",
-    "eslint-plugin-prettier": "^3.0.1",
-    "prettier": "^1.16.4"
-  }
+	"name": "parlor-db",
+	"version": "1.0.0",
+	"description": "Database of Parlor",
+	"main": "index.js",
+	"scripts": {
+		"dev": "nodemon --inspect index.js",
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/dipsaus9/parlor-db.git"
+	},
+	"author": "dipsaus9",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/dipsaus9/parlor-db/issues"
+	},
+	"homepage": "https://github.com/dipsaus9/parlor-db#readme",
+	"devDependencies": {
+		"eslint": "^5.15.1",
+		"eslint-plugin-prettier": "^3.0.1",
+		"nodemon": "^1.18.10",
+		"prettier": "^1.16.4"
+	},
+	"dependencies": {
+		"express": "^4.16.4"
+	}
 }
