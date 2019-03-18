@@ -6,7 +6,6 @@ const User = database.define(
 		email: {
 			type: Sequelize.STRING,
 			unique: true,
-			primaryKey: true,
 			validate: {
 				notEmpty: true,
 				isEmail: true,
@@ -14,7 +13,7 @@ const User = database.define(
 			}
 		},
 		password: {
-			type: Sequelize.VIRTUAL,
+			type: Sequelize.STRING,
 			allowNull: false,
 			validate: {
 				notEmpty: true
@@ -34,23 +33,57 @@ const User = database.define(
 		}
 	},
 	{
-		getterMethods: {
-			fullName() {
-				return this.firstName + ' ' + this.lastName;
+		indexes: [
+			{
+				unique: true,
+				fields: ['email']
 			}
-		},
-		setterMethods: {
-			fullName(value) {
-				const names = value.split(' ');
-				this.setDataValue('firstName', names.slice(0, -1).join(' '));
-				this.setDataValue('lastName', names.slice(-1).join(' '));
-			}
-		}
+		]
 	}
 );
 
-const settings = {
-	User
+const Project = database.define('project', {
+	name: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	image: {
+		type: Sequelize.STRING
+	}
+});
+
+Project.belongsToMany(User, {
+	through: 'projectsToUsers'
+});
+
+let settings = {
+	User,
+	Project
 };
 
+//create a database for every asset
+const assets = ['Typography', 'Color', 'Static', 'Grid'];
+
+assets.forEach((asset) => {
+	settings[asset] = database.define(asset.toLowerCase(), {
+		name: {
+			type: Sequelize.STRING,
+			validate: {
+				notEmpty: true
+			}
+		},
+		value: {
+			type: Sequelize.STRING,
+			validate: {
+				notEmpty: true
+			}
+		}
+	});
+	//all assets belong to the project
+	settings[asset].belongsTo(Project);
+});
+
+//export the settings so we can use them
 module.exports = settings;
