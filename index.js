@@ -1,9 +1,13 @@
 const express = require('express');
 const app = express();
-const port = 3000;
+const http = require('http').Server(app);
+const { db } = require('./db');
+db.loadDB();
+//config
+const { port } = require('./config');
 
-app.get('/', (req, res) => {
-	res.send('Hello World!');
-});
+//initialize routes
+require('./routes')(app);
 
-app.listen(port, () => console.log(`Example app listening on port ${port}!`));
+// listen to port
+http.listen(port, () => console.log(`Example app listening on port ${port}!`));
