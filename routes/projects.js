@@ -1,5 +1,6 @@
 const { isLoggedIn } = require('../middleware/loginSession');
-const { models } = require('../db');
+const { models, dbFunctions } = require('../db');
+const { getUserInfo } = dbFunctions;
 const { Project, User } = models;
 module.exports = (app) => {
 	/**
@@ -193,22 +194,4 @@ const getSingleProject = async (userID, projectID) => {
 		return obj;
 	}
 	return {};
-};
-
-/**
- * Get usefull info of the userObject
- * @type Functiob
- * @param {Int} userObject - All information of the user
- * @return {Object}
- */
-const getUserInfo = (userObject) => {
-	const { id, username, email, firstName, lastName, image } = userObject;
-	return {
-		id,
-		username,
-		email,
-		firstName,
-		lastName,
-		image
-	};
 };

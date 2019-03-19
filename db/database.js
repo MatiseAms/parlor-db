@@ -30,6 +30,6 @@ async function loadDB() {
 }
 
 exports.Sequelize = Sequelize;
-exports.database = Database;
+exports.Database = Database;
 exports.loadDB = loadDB;
 exports.myStore = myStore;

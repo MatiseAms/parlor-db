@@ -1,6 +1,6 @@
-const { database, Sequelize } = require('./database');
+const { Database, Sequelize } = require('./database');
 
-const User = database.define('user', {
+const User = Database.define('user', {
 	username: {
 		type: Sequelize.STRING,
 		unique: true,
@@ -42,7 +42,7 @@ const User = database.define('user', {
 	}
 });
 
-const Project = database.define('project', {
+const Project = Database.define('project', {
 	name: {
 		type: Sequelize.STRING,
 		validate: {
@@ -67,7 +67,7 @@ let settings = {
 const assets = ['Typography', 'Color', 'Static', 'Grid'];
 
 assets.forEach((asset) => {
-	settings[asset] = database.define(asset.toLowerCase(), {
+	settings[asset] = Database.define(asset.toLowerCase(), {
 		name: {
 			type: Sequelize.STRING,
 			validate: {
