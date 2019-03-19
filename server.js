@@ -26,7 +26,8 @@ const session = require('express-session');
 			})
 		)
 		.use(passport.initialize())
-		.use(passport.session());
+		.use(passport.session())
+		.use('/uploads', express.static(__dirname + '/uploads'));
 
 	//sync sessions with db
 	db.myStore.sync();
