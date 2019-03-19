@@ -2,9 +2,9 @@
 	"name": "parlor-db",
 	"version": "1.0.0",
 	"description": "Database of Parlor",
-	"main": "index.js",
+	"main": "server.js",
 	"scripts": {
-		"dev": "nodemon --inspect index.js",
+		"dev": "nodemon --inspect server.js",
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"repository": {
@@ -25,6 +25,7 @@
 	},
 	"dependencies": {
 		"bcrypt": "^3.0.4",
+		"connect-session-sequelize": "^6.0.0",
 		"cookie-parser": "^1.4.4",
 		"dotenv": "^7.0.0",
 		"express": "^4.16.4",

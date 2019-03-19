@@ -1,5 +1,5 @@
 module.exports = (app) => {
-	app.get('/', async (req, res) => {
+	app.get('/', (req, res) => {
 		res.send('wow');
 	});
 };

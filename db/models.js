@@ -1,46 +1,46 @@
 const { database, Sequelize } = require('./database');
 
-const User = database.define(
-	'user',
-	{
-		email: {
-			type: Sequelize.STRING,
-			unique: true,
-			validate: {
-				notEmpty: true,
-				isEmail: true,
-				len: [5, 256]
-			}
-		},
-		password: {
-			type: Sequelize.STRING,
-			allowNull: false,
-			validate: {
-				notEmpty: true
-			}
-		},
-		firstName: {
-			type: Sequelize.STRING,
-			validate: {
-				notEmpty: true
-			}
-		},
-		lastName: {
-			type: Sequelize.STRING,
-			validate: {
-				notEmpty: true
-			}
+const User = database.define('user', {
+	username: {
+		type: Sequelize.STRING,
+		unique: true,
+		validate: {
+			notEmpty: true,
+			len: [5, 256]
 		}
 	},
-	{
-		indexes: [
-			{
-				unique: true,
-				fields: ['email']
-			}
-		]
+	email: {
+		type: Sequelize.STRING,
+		unique: true,
+		validate: {
+			notEmpty: true,
+			isEmail: true,
+			len: [5, 256]
+		}
+	},
+	password: {
+		type: Sequelize.STRING,
+		allowNull: false,
+		validate: {
+			notEmpty: true
+		}
+	},
+	firstName: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	lastName: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	image: {
+		type: Sequelize.STRING
 	}
-);
+});
 
 const Project = database.define('project', {
 	name: {

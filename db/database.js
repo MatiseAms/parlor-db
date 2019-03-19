@@ -1,5 +1,5 @@
 const Sequelize = require('sequelize');
-
+const session = require('express-session');
 const { database } = require('../config');
 
 const Database = new Sequelize(database.name, null, null, {
@@ -11,6 +11,12 @@ const Database = new Sequelize(database.name, null, null, {
 		idle: 10000
 	},
 	storage: './database.sqlite'
+});
+
+// initalize sequelize with session store
+const SequelizeStore = require('connect-session-sequelize')(session.Store);
+const myStore = new SequelizeStore({
+	db: Database
 });
 
 async function loadDB() {
@@ -26,3 +32,4 @@ async function loadDB() {
 exports.Sequelize = Sequelize;
 exports.database = Database;
 exports.loadDB = loadDB;
+exports.myStore = myStore;

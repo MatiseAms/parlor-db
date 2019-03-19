@@ -5,28 +5,41 @@ module.exports = (passport, User) => {
 		'local-signup',
 		new LocalStrategy(
 			{
-				usernameField: 'email',
+				usernameField: 'username',
+				email: 'email',
 				firstName: 'firstName',
 				lastName: 'lastName',
 				passwordField: 'password',
 				passReqToCallback: true // allows us to pass back the entire request to the callback
 			},
 			async (req, username, password, done) => {
-				const user = await User.findOne({
+				const emailUser = await User.findOne({
 					where: {
-						email: username
+						email: req.body.email
 					}
 				});
 
-				if (user) {
+				const usernameUser = await User.findOne({
+					where: {
+						username
+					}
+				});
+
+				if (emailUser) {
 					return done(null, false, {
+						code: 1, // 1 stands for: your request can't be procesed
 						message: 'That email is already taken'
 					});
+				} else if (usernameUser) {
+					return done(null, false, {
+						code: 1, // 1 stands for: your request can't be procesed
+						message: 'That username is already taken'
+					});
 				} else {
-					const saltRounds = 10;
-					const hash = await bcrypt.hash(password, saltRounds);
-					const userCreated = User.create({
-						email: username,
+					const hash = await bcrypt.hash(password, 10);
+					const userCreated = await User.create({
+						username: username,
+						email: req.body.email,
 						password: hash,
 						firstName: req.body.fName,
 						lastName: req.body.lName
@@ -42,29 +55,43 @@ module.exports = (passport, User) => {
 		new LocalStrategy(
 			{
 				// by default, local strategy uses username and password, we will override with email
-				usernameField: 'email',
+				usernameField: 'username',
 				passwordField: 'password',
 				passReqToCallback: true // allows us to pass back the entire request to the callback
 			},
-			async (req, email, password, done) => {
+			async (req, username, password, done) => {
 				const isValidPassword = (userpass, password) => {
 					return bcrypt.compareSync(password, userpass);
 				};
 
-				const user = await User.findOne({
+				//first find an user with an email as username
+				let user;
+				user = await User.findOne({
 					where: {
-						email: email
+						email: username
 					}
 				});
 
+				//if there is not user find a user with a username
+				if (!user) {
+					user = await User.findOne({
+						where: {
+							username
+						}
+					});
+				}
+
+				//still no user, there is no user
 				if (!user) {
 					return done(null, false, {
-						message: 'Email does not exist'
+						code: 1,
+						message: 'Username is incorrect, your username can also be your email'
 					});
 				}
 
 				if (!isValidPassword(user.password, password)) {
 					return done(null, false, {
+						code: 1,
 						message: 'Incorrect password.'
 					});
 				}
@@ -76,10 +103,17 @@ module.exports = (passport, User) => {
 	);
 
 	passport.serializeUser((user, done) => {
-		done(null, user);
+		done(null, user.id);
 	});
 
-	passport.deserializeUser((user, done) => {
-		done(null, user);
+	passport.deserializeUser(async (id, done) => {
+		const user = await User.findOne({
+			where: {
+				id
+			}
+		});
+		if (user) {
+			done(null, user);
+		} else done(user.errors, null);
 	});
 };
