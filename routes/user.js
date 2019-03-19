@@ -1,14 +1,42 @@
-const { logOut } = require('../middleware/loginSession');
-const { dbFunctions } = require('../db');
+const { isLoggedIn, logOut } = require('../middleware/loginSession');
+const { dbFunctions, models } = require('../db');
+const { User } = models;
 const { getUserInfo } = dbFunctions;
+const path = require('path');
+
+const multer = require('multer');
+
+const storage = multer.diskStorage({
+	destination(req, file, cb) {
+		cb(null, 'uploads/profile');
+	},
+	filename(req, file, cb) {
+		cb(null, `${Date.now()}.${path.extname(file.originalname)}`);
+	}
+});
+
+const upload = multer({
+	storage,
+	fileFilter(req, file, callback) {
+		const ext = path.extname(file.originalname);
+		if (ext !== '.png' && ext !== '.jpg' && ext !== '.gif' && ext !== '.jpeg') {
+			return callback(new Error('Only images are allowed'));
+		}
+		callback(null, true);
+	},
+	limits: {
+		fileSize: 1024 * 1024
+	}
+});
 
 module.exports = (app, passport) => {
 	/**
-	 * Single project
+	 * Signup
 	 * @type POST
 	 * @middleware passport.authenticate - local-signup
 	 * @param {Object} user - User object after create
 	 * @param {Object} info - Information when something went wrong
+	 * @return {redirect || 400} Redirect to projects or get a 400
 	 */
 	app.post('/signup', (req, res, next) => {
 		passport.authenticate('local-signup', (err, user, info) => {
@@ -30,11 +58,12 @@ module.exports = (app, passport) => {
 	});
 
 	/**
-	 * Single project
-	 * @type GET
-	 * @middleware isLoggedIn
-	 * @param {Int} req.user.id - User session ID
-	 * @param {Int} req.params.id - Project ID
+	 * Login
+	 * @type POST
+	 * @middleware passport.authenticate - local-signin
+	 * @param {Object} req.body.username - User email or username
+	 * @param {Object} req.body.password - User password
+	 * @return {redirect} Redirect to projects or get a message
 	 */
 	app.post('/login', (req, res, next) => {
 		passport.authenticate('local-signin', (err, user, info) => {
@@ -54,10 +83,35 @@ module.exports = (app, passport) => {
 			}
 		})(req, res, next);
 	});
+
+	/**
+	 * Logout
+	 * @middleware logOut - middleware function
+	 * @type POST
+	 */
 	app.post('/logout', logOut, (req, res) => {
 		res.send({
 			code: 0,
 			message: 'logout succesful'
 		});
+	});
+
+	app.post('/user/image', isLoggedIn, upload.single('image'), async (req, res) => {
+		if (req.file) {
+			await User.update(
+				{
+					image: req.file.path
+				},
+				{
+					where: {
+						id: req.user.id
+					}
+				}
+			);
+			res.send({
+				code: 0,
+				message: 'Image upload succesful'
+			});
+		}
 	});
 };
