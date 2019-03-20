@@ -1,3 +1,4 @@
+const bcrypt = require('bcrypt');
 const { isLoggedIn, logOut } = require('../middleware/loginSession');
 const { dbFunctions, models } = require('../db');
 const { User } = models;
@@ -74,7 +75,7 @@ module.exports = (app, passport) => {
 	});
 
 	/**
-	 * Logout
+	 * Change profile image
 	 * @middleware isLoggedIn - middleware function
 	 * @middleware single upload - middleware function
 	 * @middleware handle upload to db - middleware function
@@ -119,4 +120,57 @@ module.exports = (app, passport) => {
 			}
 		}
 	);
+
+	/**
+	 * Change password
+	 * @middleware isLoggedIn - middleware function
+	 * @type POST
+	 * @return {Object} code 0 or 1 - if 0 password is changed, session keeps the same
+	 */
+	app.post('/user/password', isLoggedIn, async (req, res) => {
+		const userID = req.user.id;
+		const user = await User.findByPk(userID);
+		//dubble check if user is logged in
+		if (!user) {
+			res.redirect('/login');
+		}
+
+		//isSamePassword check (bcrypt)
+		const isSamePassword = (userpass, password) => {
+			return bcrypt.compareSync(password, userpass);
+		};
+
+		const oldPass = req.body.oldPassword;
+		const newPas = req.body.password;
+
+		//Check if the user enters the same old pass, otherwise don't contintue
+		if (!isSamePassword(user.password, oldPass)) {
+			res.status(400).json({
+				code: 1,
+				message: 'Old Password is incorrect'
+			});
+		} else if (isSamePassword(user.password, newPas)) {
+			//check if it is not the same pass as the old one, bcrypt is a better check then old pass to new pass check
+			res.status(400).json({
+				code: 1,
+				message: 'Password can not be an old password'
+			});
+		} else {
+			//if everything goes well change it
+			const hash = await bcrypt.hash(newPas, 10);
+
+			await User.update(
+				{
+					password: hash
+				},
+				{
+					where: {
+						id: userID
+					}
+				}
+			);
+			const restData = getUserInfo(user);
+			res.send(restData);
+		}
+	});
 };
