@@ -6,13 +6,19 @@ const { User } = models;
 const passport = require('passport');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
+const { port } = require('./config');
+
+const { uploadFunctions } = require('./methods');
+const { checkOrCreateFolder } = uploadFunctions;
 
 // initalize sequelize with session store
 (async () => {
 	await db.loadDB();
 
-	//config
-	const { port } = require('./config');
+	//create uploads folder if it wasn't there
+	checkOrCreateFolder('./uploads');
+	checkOrCreateFolder('./uploads/profile');
+	checkOrCreateFolder('./uploads/projects');
 
 	app
 		.use(cookieParser())
@@ -27,7 +33,8 @@ const session = require('express-session');
 		)
 		.use(passport.initialize())
 		.use(passport.session())
-		.use('/uploads', express.static(__dirname + '/uploads'));
+		.use('/uploads', express.static(__dirname + '/uploads'))
+		.use('/uploads', express.static(__dirname + '/statics'));
 
 	//sync sessions with db
 	db.myStore.sync();

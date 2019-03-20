@@ -1,3 +1,4 @@
+const { hostname } = require('../../config');
 /**
  * Get usefull info of the userObject
  * @type Function
@@ -5,13 +6,14 @@
  * @return {Object}
  */
 module.exports = (userObject) => {
-	const { id, username, email, firstName, lastName, image } = userObject;
+	let { id, username, email, firstName, lastName, image } = userObject;
+	if (!image) image = 'uploads/avatar.png';
 	return {
 		id,
 		username,
 		email,
 		firstName,
 		lastName,
-		image
+		image: `${hostname}/${image}`
 	};
 };

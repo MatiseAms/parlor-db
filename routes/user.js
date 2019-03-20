@@ -2,32 +2,9 @@ const { isLoggedIn, logOut } = require('../middleware/loginSession');
 const { dbFunctions, models } = require('../db');
 const { User } = models;
 const { getUserInfo } = dbFunctions;
-const path = require('path');
 
-const multer = require('multer');
-
-const storage = multer.diskStorage({
-	destination(req, file, cb) {
-		cb(null, 'uploads/profile');
-	},
-	filename(req, file, cb) {
-		cb(null, `${Date.now()}${path.extname(file.originalname)}`);
-	}
-});
-
-const upload = multer({
-	storage,
-	fileFilter(req, file, callback) {
-		const ext = path.extname(file.originalname);
-		if (ext !== '.png' && ext !== '.jpg' && ext !== '.gif' && ext !== '.jpeg') {
-			return callback(new Error('Only images are allowed'));
-		}
-		callback(null, true);
-	},
-	limits: {
-		fileSize: 1024 * 1024
-	}
-});
+const { uploadFunctions } = require('../methods');
+const { clearFolderOnUpload, upload } = uploadFunctions;
 
 module.exports = (app, passport) => {
 	/**
@@ -96,22 +73,50 @@ module.exports = (app, passport) => {
 		});
 	});
 
-	app.post('/user/image', isLoggedIn, upload.single('image'), async (req, res) => {
-		if (req.file) {
-			await User.update(
-				{
-					image: req.file.path
-				},
-				{
-					where: {
-						id: req.user.id
-					}
-				}
-			);
-			res.send({
-				code: 0,
-				message: 'Image upload succesful'
+	/**
+	 * Logout
+	 * @middleware isLoggedIn - middleware function
+	 * @middleware single upload - middleware function
+	 * @middleware handle upload to db - middleware function
+	 * @type POST
+	 * @return {Object} code 0 or 1
+	 */
+	app.post(
+		'/user/image',
+		//has to be logged in
+		isLoggedIn,
+		//upload
+		(req, res, next) => {
+			//middleware is a curry
+			upload.single('image')(req, res, (err) => {
+				if (err)
+					res.send({
+						code: 1,
+						message: 'Something went wrong with your upload'
+					});
+				next();
 			});
+		},
+		//handle rest of upload
+		async (req, res) => {
+			if (req.file) {
+				await clearFolderOnUpload(req.file);
+
+				await User.update(
+					{
+						image: req.file.path
+					},
+					{
+						where: {
+							id: req.user.id
+						}
+					}
+				);
+				res.send({
+					code: 0,
+					message: 'Image upload succesful'
+				});
+			}
 		}
-	});
+	);
 };

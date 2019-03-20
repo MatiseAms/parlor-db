@@ -147,7 +147,18 @@ const getAllProjects = async (userID) => {
 				model: User
 			}
 		});
-		return allProjects;
+		//we need to map data cause we don't want to show all data
+		const mappedData = allProjects.map((project) => {
+			const users = project.users.map((user) => getUserInfo(user.dataValues));
+			const obj = {
+				id: project.id,
+				image: project.image,
+				name: project.name,
+				users
+			};
+			return obj;
+		});
+		return mappedData;
 	}
 	// empty array return
 	return [];
