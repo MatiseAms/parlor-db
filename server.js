@@ -1,9 +1,10 @@
 const express = require('express');
 const app = express();
 const http = require('http').Server(app);
-const { db, models } = require('./db');
-const { User } = models;
+const { db } = require('./db');
 const passport = require('passport');
+const { passportMiddleware } = require('./middleware');
+
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const { port } = require('./config');
@@ -39,7 +40,7 @@ const { checkOrCreateFolder } = uploadFunctions;
 	//sync sessions with db
 	db.myStore.sync();
 
-	require('./middleware/passport')(passport, User);
+	passportMiddleware(passport);
 
 	//initialize routes
 	require('./routes')(app, passport);

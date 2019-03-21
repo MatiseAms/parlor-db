@@ -1,8 +1,10 @@
 const bcrypt = require('bcrypt');
-const { db } = require('../db');
+const { db, models } = require('../db');
 const { Sequelize } = db;
 const Op = Sequelize.Op;
-module.exports = (passport, User) => {
+const { User } = models;
+
+module.exports = (passport) => {
 	const LocalStrategy = require('passport-local').Strategy;
 	passport.use(
 		'local-signup',
