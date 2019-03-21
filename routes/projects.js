@@ -12,7 +12,14 @@ module.exports = (app) => {
 	 */
 	app.get('/projects', isLoggedIn, async (req, res) => {
 		const projects = await getAllProjects(req.user.id);
-		res.send(projects);
+		if (projects) {
+			res.send(projects);
+		} else {
+			res.status(404).json({
+				code: 3,
+				message: 'No projects found'
+			});
+		}
 	});
 
 	/**
@@ -143,7 +150,7 @@ module.exports = (app) => {
  * get All projects
  * @type Functiob
  * @param {Int} userID - User session ID
- * @return {Array}
+ * @return {Array || false}
  */
 const getAllProjects = async (userID) => {
 	//find all project id's with the right user so we can find the right data later
@@ -177,7 +184,7 @@ const getAllProjects = async (userID) => {
 		return allProjects;
 	}
 	// empty array return
-	return [];
+	return false;
 };
 
 /**
@@ -185,7 +192,7 @@ const getAllProjects = async (userID) => {
  * @type Functiob
  * @param {Int} userID - User session ID
  * @param {Int} projectID - Project ID
- * @return {Object}
+ * @return {Object || false}
  */
 const getSingleProject = async (userID, projectID) => {
 	//find the project and check if we have access with our userID
