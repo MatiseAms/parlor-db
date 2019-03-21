@@ -6,7 +6,7 @@ const User = Database.define('user', {
 		unique: true,
 		validate: {
 			notEmpty: true,
-			len: [5, 256]
+			len: [3, 256]
 		}
 	},
 	email: {

@@ -42,15 +42,19 @@ module.exports = (passport, User) => {
 					});
 				} else {
 					const hash = await bcrypt.hash(password, 10);
-					const userCreated = await User.create({
-						username: username,
-						email: req.body.email,
-						password: hash,
-						firstName: req.body.fName,
-						lastName: req.body.lName,
-						image: 'uploads/avatar.png'
-					});
-					return done(null, userCreated);
+					try {
+						const userCreated = await User.create({
+							username: username,
+							email: req.body.email,
+							password: hash,
+							firstName: req.body.fName,
+							lastName: req.body.lName,
+							image: 'uploads/avatar.png'
+						});
+						return done(null, userCreated);
+					} catch (e) {
+						return done(null, false, e);
+					}
 				}
 			}
 		)
