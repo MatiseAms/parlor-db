@@ -1,7 +1,8 @@
-const { isLoggedIn } = require('../middleware/loginSession');
-const { models, dbFunctions } = require('../db');
-const { getUserInfo } = dbFunctions;
+const { isLoggedIn } = require('../methods');
+const { models, db } = require('../db');
 const { Project, User } = models;
+const { Sequelize } = db;
+const Op = Sequelize.Op;
 module.exports = (app) => {
 	/**
 	 * All projects
@@ -23,7 +24,14 @@ module.exports = (app) => {
 	 */
 	app.get('/project/:id', isLoggedIn, async (req, res) => {
 		const project = await getSingleProject(req.user.id, req.params.id);
-		res.send(project);
+		if (project) {
+			res.send(project);
+		} else {
+			res.status(404).json({
+				code: 3,
+				message: 'No project found with this ID'
+			});
+		}
 	});
 
 	/**
@@ -52,25 +60,38 @@ module.exports = (app) => {
 			//check if the user exists, based on email
 			const extraUser = await User.findOne({
 				where: {
-					email: req.body.email
+					[Op.or]: [
+						{
+							email: req.body.email
+						},
+						{
+							username: req.body.email
+						}
+					]
 				}
 			});
-
 			if (!extraUser) {
 				res.status(404).json({
 					codde: 3,
 					message: 'User does not exist'
 				});
 			} else {
-				//if there is a user add that user
-				project.addUser(extraUser);
-				res.send({
-					code: '0',
-					message: 'User has been added to the project'
-				});
+				const alreadyAdded = await project.hasUser(extraUser);
+				if (alreadyAdded) {
+					res.send({
+						codde: 1,
+						message: 'User is already in this projcet'
+					});
+				} else {
+					//if there is a user add that user
+					project.addUser(extraUser);
+					res.send({
+						code: 0,
+						message: 'User has been added to the project'
+					});
+				}
 			}
 		}
-		res.send(project);
 	});
 
 	/**
@@ -125,9 +146,13 @@ module.exports = (app) => {
  * @return {Array}
  */
 const getAllProjects = async (userID) => {
+	//find all project id's with the right user so we can find the right data later
 	const projects = await Project.findAll({
+		raw: true,
+		attributes: ['id'],
 		include: {
 			model: User,
+			attributes: ['id'],
 			where: {
 				id: userID
 			}
@@ -144,21 +169,12 @@ const getAllProjects = async (userID) => {
 				id: projectIDs
 			},
 			include: {
-				model: User
+				model: User,
+				attributes: ['id', 'username', 'email', 'image', 'firstName', 'lastName']
 			}
 		});
-		//we need to map data cause we don't want to show all data
-		const mappedData = allProjects.map((project) => {
-			const users = project.users.map((user) => getUserInfo(user.dataValues));
-			const obj = {
-				id: project.id,
-				image: project.image,
-				name: project.name,
-				users
-			};
-			return obj;
-		});
-		return mappedData;
+
+		return allProjects;
 	}
 	// empty array return
 	return [];
@@ -176,33 +192,23 @@ const getSingleProject = async (userID, projectID) => {
 	const project = await Project.findOne({
 		where: {
 			id: projectID
-		},
-		include: {
-			model: User,
-			where: {
-				id: userID
-			}
 		}
 	});
 
+	const user = await User.findByPk(userID);
+	const projectHasUser = await project.hasUser(user);
 	//if there is a proejct iwth the right id and the right user show it, otherwise it isnt found and it will return an empty object
-	if (project) {
+	if (project && projectHasUser) {
 		const allProject = await Project.findOne({
 			where: {
 				id: projectID
 			},
 			include: {
-				model: User
+				model: User,
+				attributes: ['id', 'username', 'email', 'image', 'firstName', 'lastName']
 			}
 		});
-		const users = allProject.users.map((user) => getUserInfo(user.dataValues));
-		const obj = {
-			id: allProject.id,
-			image: allProject.image,
-			name: allProject.name,
-			users
-		};
-		return obj;
+		return allProject;
 	}
-	return {};
+	return false;
 };

@@ -1,8 +1,8 @@
 const bcrypt = require('bcrypt');
-const { isLoggedIn, logOut } = require('../middleware/loginSession');
-const { dbFunctions, models } = require('../db');
+const { isLoggedIn, logOut } = require('../methods');
+const { models } = require('../db');
 const { User } = models;
-const { getUserInfo } = dbFunctions;
+const { getUserInfo } = require('../methods');
 
 const { uploadFunctions } = require('../methods');
 const { clearFolderOnUpload, upload } = uploadFunctions;
@@ -49,11 +49,12 @@ module.exports = (app, passport) => {
 			if (user) {
 				req.logIn(user, (err) => {
 					if (err) return next(err);
-
-					const rest = getUserInfo(user);
-					res.send({
-						code: 0, //0 is succes
-						message: rest
+					req.session.save(() => {
+						if (req.query.redirect) {
+							res.redirect(req.query.redirect);
+						} else {
+							res.redirect('/projects');
+						}
 					});
 				});
 			} else {
@@ -67,12 +68,7 @@ module.exports = (app, passport) => {
 	 * @middleware logOut - middleware function
 	 * @type POST
 	 */
-	app.post('/logout', logOut, (req, res) => {
-		res.send({
-			code: 0,
-			message: 'logout succesful'
-		});
-	});
+	app.post('/logout', logOut);
 
 	/**
 	 * Change profile image
@@ -91,7 +87,7 @@ module.exports = (app, passport) => {
 			//middleware is a curry
 			upload.single('image')(req, res, (err) => {
 				if (err)
-					res.send({
+					res.status(403).json({
 						code: 1,
 						message: 'Something went wrong with your upload'
 					});
@@ -129,7 +125,12 @@ module.exports = (app, passport) => {
 	 */
 	app.post('/user/password', isLoggedIn, async (req, res) => {
 		const userID = req.user.id;
-		const user = await User.findByPk(userID);
+		const user = await User.findOne({
+			raw: true,
+			where: {
+				id: userID
+			}
+		});
 		//dubble check if user is logged in
 		if (!user) {
 			res.redirect('/login');

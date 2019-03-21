@@ -10,10 +10,7 @@ const isLoggedIn = (req, res, next) => {
 
 const logOut = (req, res) => {
 	req.session.destroy(() => {
-		res.send({
-			code: 0,
-			message: 'Logout was succesful'
-		});
+		res.redirect('/');
 	});
 };
 

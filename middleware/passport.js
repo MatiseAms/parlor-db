@@ -1,4 +1,7 @@
 const bcrypt = require('bcrypt');
+const { db } = require('../db');
+const { Sequelize } = db;
+const Op = Sequelize.Op;
 module.exports = (passport, User) => {
 	const LocalStrategy = require('passport-local').Strategy;
 	passport.use(
@@ -13,24 +16,26 @@ module.exports = (passport, User) => {
 				passReqToCallback: true // allows us to pass back the entire request to the callback
 			},
 			async (req, username, password, done) => {
-				const emailUser = await User.findOne({
+				//check if there is already a user with that email or username
+				const userExist = await User.findOne({
 					where: {
-						email: req.body.email
+						[Op.or]: [
+							{
+								email: req.body.email
+							},
+							{
+								username
+							}
+						]
 					}
 				});
 
-				const usernameUser = await User.findOne({
-					where: {
-						username
-					}
-				});
-
-				if (emailUser) {
+				if (userExist && userExist.email === req.body.email) {
 					return done(null, false, {
 						code: 1, // 1 stands for: your request can't be procesed
 						message: 'That email is already taken'
 					});
-				} else if (usernameUser) {
+				} else if (userExist && userExist.username === username) {
 					return done(null, false, {
 						code: 1, // 1 stands for: your request can't be procesed
 						message: 'That username is already taken'
@@ -42,7 +47,8 @@ module.exports = (passport, User) => {
 						email: req.body.email,
 						password: hash,
 						firstName: req.body.fName,
-						lastName: req.body.lName
+						lastName: req.body.lName,
+						image: 'uploads/avatar.png'
 					});
 					return done(null, userCreated);
 				}
@@ -64,22 +70,19 @@ module.exports = (passport, User) => {
 					return bcrypt.compareSync(password, userpass);
 				};
 
-				//first find an user with an email as username
-				let user;
-				user = await User.findOne({
+				const user = await User.findOne({
+					raw: true,
 					where: {
-						email: username
+						[Op.or]: [
+							{
+								email: username
+							},
+							{
+								username
+							}
+						]
 					}
 				});
-
-				//if there is not user find a user with a username
-				if (!user) {
-					user = await User.findOne({
-						where: {
-							username
-						}
-					});
-				}
 
 				//still no user, there is no user
 				if (!user) {
@@ -95,9 +98,7 @@ module.exports = (passport, User) => {
 						message: 'Incorrect password.'
 					});
 				}
-
-				const userinfo = user.get();
-				return done(null, userinfo);
+				return done(null, user);
 			}
 		)
 	);
@@ -107,13 +108,11 @@ module.exports = (passport, User) => {
 	});
 
 	passport.deserializeUser(async (id, done) => {
-		const user = await User.findOne({
-			where: {
-				id
-			}
-		});
+		const user = await User.findByPk(id);
 		if (user) {
 			done(null, user);
-		} else done(user.errors, null);
+		} else {
+			done(user.errors, null);
+		}
 	});
 };

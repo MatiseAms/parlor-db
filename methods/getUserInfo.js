@@ -1,4 +1,4 @@
-const { hostname } = require('../../config');
+const { hostname } = require('../config');
 /**
  * Get usefull info of the userObject
  * @type Function

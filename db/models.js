@@ -58,6 +58,10 @@ Project.belongsToMany(User, {
 	through: 'projectsToUsers'
 });
 
+User.belongsToMany(Project, {
+	through: 'projectsToUsers'
+});
+
 let settings = {
 	User,
 	Project
