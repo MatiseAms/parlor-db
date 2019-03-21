@@ -2,10 +2,8 @@ const isLoggedIn = (req, res, next) => {
 	if (req.session.passport) {
 		return next();
 	}
-	res.status(403).json({
-		code: 2, //403 forbidden
-		message: 'You are not allowed to see this page'
-	});
+	const originalUrl = req.originalUrl;
+	res.redirect(`/login?redirect=${originalUrl}`);
 };
 
 const logOut = (req, res) => {
