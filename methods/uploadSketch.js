@@ -7,7 +7,15 @@ const multer = require('multer');
 //multer settings
 const storage = multer.diskStorage({
 	destination(req, file, cb) {
-		const localPath = `./uploads/profile/${req.session.passport.user}`;
+		console.log(req);
+		const projectID = req.params.id;
+		const projectFolder = `./uploads/projects/${projectID}`;
+
+		if (!fs.existsSync(projectFolder)) {
+			fs.mkdirSync(projectFolder);
+		}
+
+		const localPath = `./uploads/projects/${projectID}/sketch`;
 		if (!fs.existsSync(localPath)) {
 			fs.mkdirSync(localPath);
 		}
@@ -24,13 +32,10 @@ const uploadFunctions = {
 		storage,
 		fileFilter(req, file, callback) {
 			const ext = path.extname(file.originalname);
-			if (ext !== '.png' && ext !== '.jpg' && ext !== '.gif' && ext !== '.jpeg' && ext !== '.svg') {
-				return callback(new Error('Only images are allowed'));
+			if (ext !== '.sketch') {
+				return callback(new Error('Only Sketch files are allowed'));
 			}
 			callback(null, true);
-		},
-		limits: {
-			fileSize: 1024 * 1024
 		}
 	}),
 	checkOrCreateFolder(path) {

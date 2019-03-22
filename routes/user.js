@@ -4,8 +4,8 @@ const { models } = require('../db');
 const { User } = models;
 const { getUserInfo } = require('../methods');
 
-const { uploadFunctions } = require('../methods');
-const { clearFolderOnUpload, upload } = uploadFunctions;
+const { uploadImage } = require('../methods');
+const { clearFolderOnUpload, upload } = uploadImage;
 
 module.exports = (app, passport) => {
 	/**

@@ -1,6 +1,8 @@
 //collect all helper functions here
-module.exports.uploadFunctions = require('./uploads');
+module.exports.uploadImage = require('./uploadImage');
+module.exports.uploadSketch = require('./uploadSketch');
 module.exports.getUserInfo = require('./getUserInfo');
+module.exports.checkOrCreateFolder = require('./checkOrCreateFolder');
 
 const loginFunctions = require('./login');
 module.exports.isLoggedIn = loginFunctions.isLoggedIn;

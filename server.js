@@ -8,9 +8,7 @@ const { passportMiddleware } = require('./middleware');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const { port } = require('./config');
-
-const { uploadFunctions } = require('./methods');
-const { checkOrCreateFolder } = uploadFunctions;
+const { checkOrCreateFolder } = require('./methods');
 
 // initalize sequelize with session store
 (async () => {
