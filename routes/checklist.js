@@ -29,10 +29,10 @@ module.exports = (app) => {
 		//handle rest of upload
 		async (req, res) => {
 			if (req.files) {
-				req.files[0].path;
-				const zip = new AdmZip(req.files[0].path);
 				console.log(req.files[0]);
-				zip.extractAllTo(`${req.files[0].destination}/${req.files[0].originalname}`);
+
+				const zip = new AdmZip(req.files[0].path);
+				await zip.extractAllToAsync(`${req.files[0].destination}/${req.files[0].originalname}`);
 				res.send('ok');
 			}
 		}
