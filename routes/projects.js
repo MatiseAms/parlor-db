@@ -132,7 +132,8 @@ module.exports = (app) => {
 			//if it doesn't exist create one
 			const project = await Project.create({
 				name: req.body.name,
-				image: '' //image will be created later
+				image: '', //image will be created later
+				version: 0
 			});
 
 			//link user with the project

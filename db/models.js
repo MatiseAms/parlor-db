@@ -51,6 +51,9 @@ const Project = Database.define('project', {
 	},
 	image: {
 		type: Sequelize.STRING
+	},
+	version: {
+		type: Sequelize.NUMBER
 	}
 });
 

@@ -26,8 +26,9 @@ const { checkOrCreateFolder } = require('./methods');
 			session({
 				secret: 'iloveparlorandparlorlovesme',
 				store: db.myStore,
-				resave: false,
-				proxy: true
+				resave: true,
+				proxy: true,
+				saveUninitialized: true
 			})
 		)
 		.use(passport.initialize())

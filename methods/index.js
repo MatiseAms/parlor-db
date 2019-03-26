@@ -1,6 +1,5 @@
 //collect all helper functions here
 module.exports.uploadImage = require('./uploadImage');
-module.exports.uploadSketch = require('./uploadSketch');
 module.exports.getUserInfo = require('./getUserInfo');
 module.exports.checkOrCreateFolder = require('./checkOrCreateFolder');
 
