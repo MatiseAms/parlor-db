@@ -8,3 +8,4 @@ module.exports.isLoggedIn = loginFunctions.isLoggedIn;
 module.exports.logOut = loginFunctions.logOut;
 
 module.exports.projects = require('./projects');
+module.exports.sketch = require('./uploadSketch');

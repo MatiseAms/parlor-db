@@ -6,14 +6,6 @@ const isLoggedIn = (req, res, next) => {
 	res.redirect(`/login?redirect=${originalUrl}`);
 };
 
-const isLoggedInAndProject = (req, res, next) => {
-	if (req.session.passport) {
-		return next();
-	}
-	const originalUrl = req.originalUrl;
-	res.redirect(`/login?redirect=${originalUrl}`);
-};
-
 const logOut = (req, res) => {
 	req.session.destroy(() => {
 		res.redirect('/');
@@ -22,6 +14,5 @@ const logOut = (req, res) => {
 
 module.exports = {
 	isLoggedIn,
-	logOut,
-	isLoggedInAndProject
+	logOut
 };
