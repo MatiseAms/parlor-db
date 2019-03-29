@@ -6,3 +6,5 @@ module.exports.checkOrCreateFolder = require('./checkOrCreateFolder');
 const loginFunctions = require('./login');
 module.exports.isLoggedIn = loginFunctions.isLoggedIn;
 module.exports.logOut = loginFunctions.logOut;
+
+module.exports.projects = require('./projects');
