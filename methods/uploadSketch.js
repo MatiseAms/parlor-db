@@ -2,8 +2,8 @@ const path = require('path');
 const multer = require('multer');
 const checkOrCreateFolder = require('./checkOrCreateFolder');
 const { models } = require('../db');
-const { Project, User } = models;
-
+const { Project, User, Color } = models;
+const ntc = require('ntc');
 const StreamZip = require('node-stream-zip');
 const fs = require('fs');
 var mkdirp = require('mkdirp');
@@ -137,11 +137,85 @@ const unzipSketchFiles = async (req, res, next) => {
 			//close is important, otherwise hell breaks lose
 			zip.close();
 		});
-		next();
+		setTimeout(() => {
+			next();
+		}, 1000);
 	}
 };
 
+const scanAllColors = (req, res, next) => {
+	const projectID = res.locals.projectID;
+	// uncomment this but for testing it is 1
+	// const projectVersion = res.locals.projectVersion;
+	const projectVersion = 1;
+	const rawdata = fs.readFileSync('./uploads/projects/1/1/scholtensproductpage_(master_@_3267897)_copy/document.json');
+	const documentData = JSON.parse(rawdata);
+	if (documentData) {
+		const rawColors = documentData.assets.colors;
+		rawColors.forEach(async (color) => {
+			const colorInstance = new ColorFormatter({
+				r: Math.round(color.red * 255),
+				g: Math.round(color.green * 255),
+				b: Math.round(color.blue * 255),
+				a: color.alpha
+			});
+			await Color.create({
+				name: colorInstance.colorName,
+				value: colorInstance.hexToCss,
+				projectId: projectID
+			});
+		});
+	}
+
+	next();
+};
+
+class ColorFormatter {
+	constructor(value) {
+		this.rgba = value;
+	}
+	get rgba() {
+		return this._rgba;
+	}
+	set rgba(value) {
+		this._rgba = value;
+		this.changeRgbaToHex(value);
+		return this._rgba;
+	}
+	get hex() {
+		return this._hex;
+	}
+	set hex(value) {
+		this._hex = value;
+		this.colorName = this.hexToCss;
+		return this._hex;
+	}
+	get hexToCss() {
+		return `#${this._hex.r}${this._hex.g}${this._hex.b}`;
+	}
+	changeRgbaToHex(val) {
+		let hex = {};
+		Object.keys(val).forEach((color) => {
+			if (color === 'a') {
+				hex.a = val[color];
+			} else {
+				const s = Math.round(val[color]).toString(16);
+				hex[color] = s.length === 1 ? `0${s}` : s;
+			}
+		});
+		this.hex = hex;
+	}
+	set colorName(value) {
+		const name = ntc.name(value);
+		this.name = name[1];
+	}
+	get colorName() {
+		return this.name;
+	}
+}
+
 module.exports = {
 	uploadSketchFiles,
-	unzipSketchFiles
+	unzipSketchFiles,
+	scanAllColors
 };

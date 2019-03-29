@@ -1,5 +1,5 @@
 const { isLoggedIn, sketch } = require('../methods');
-const { uploadSketchFiles, unzipSketchFiles } = sketch;
+const { uploadSketchFiles, unzipSketchFiles, scanAllColors } = sketch;
 
 module.exports = (app) => {
 	/**
@@ -17,6 +17,7 @@ module.exports = (app) => {
 		uploadSketchFiles,
 		//unzip the sketch files
 		unzipSketchFiles,
+		scanAllColors,
 		(req, res) => {
 			res.send('hoi');
 		}
