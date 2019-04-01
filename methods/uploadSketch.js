@@ -85,89 +85,87 @@ const uploadSketchFiles = async (req, res, next) => {
 const unzipSketchFiles = async (req, res, next) => {
 	const projectID = res.locals.projectID;
 	const version = res.locals.projectVersion;
+	res.locals.fileNames = [];
 	if (req.files) {
-		//loop trough all files
-		req.files.forEach((file) => {
-			//create zip instance of file
-			const zip = new StreamZip({
-				file: file.path
-			});
-			//on entry check zip file
-			zip.on('entry', (entry) => {
-				var pathname = path.resolve(
-					`./uploads/projects/${projectID}/${version}/${file.filename
-						.split('.zip')[0]
-						.toLowerCase()
-						.split(' ')
-						.join('_')}`,
-					entry.name
-				);
-				//test if url is not malicious
-				if (
-					/\.\./.test(
-						path.relative(
-							`./uploads/projects/${projectID}/${version}/${file.filename
-								.split('.zip')[0]
-								.toLowerCase()
-								.split(' ')
-								.join('_')}`,
-							pathname
-						)
-					)
-				) {
-					console.warn('[zip warn]: ignoring maliciously crafted paths in zip file:', entry.name);
-					return;
-				}
-				//create folders if there is one needed
-				mkdirp(path.dirname(pathname));
-				//enter stream
-				zip.stream(entry.name, (err, stream) => {
-					if (err) {
-						console.error('Error:', err.toString());
-						return;
-					}
-					stream.on('error', (err) => {
-						console.log('[ERROR]', err);
-						return;
-					});
-					//pipe stream to right place
-					stream.pipe(fs.createWriteStream(pathname));
-				});
-			});
-			//close is important, otherwise hell breaks lose
-			zip.close();
-		});
-		setTimeout(() => {
+		try {
+			await unzipAllFiles(req, res, projectID, version);
 			next();
-		}, 1000);
+		} catch (e) {
+			res.status(500).json({
+				code: 3,
+				message: 'Something went wrong'
+			});
+		}
 	}
 };
 
-const scanAllColors = (req, res, next) => {
-	const projectID = res.locals.projectID;
+const scanAllColors = async (req, res, next) => {
+	const projectId = res.locals.projectID;
 	// uncomment this but for testing it is 1
 	// const projectVersion = res.locals.projectVersion;
-	const projectVersion = 1;
-	const rawdata = fs.readFileSync('./uploads/projects/1/1/scholtensproductpage_(master_@_3267897)_copy/document.json');
-	const documentData = JSON.parse(rawdata);
-	if (documentData) {
-		const rawColors = documentData.assets.colors;
-		rawColors.forEach(async (color) => {
-			const colorInstance = new ColorFormatter({
-				r: Math.round(color.red * 255),
-				g: Math.round(color.green * 255),
-				b: Math.round(color.blue * 255),
-				a: color.alpha
+	const fileNames = res.locals.fileNames;
+	let colorsSet = [];
+	let colorNames = [];
+	let values = [];
+	try {
+		fileNames.forEach((file) => {
+			const rawdata = fs.readFileSync(`${file}/document.json`);
+			const documentData = JSON.parse(rawdata);
+
+			if (documentData) {
+				const rawColors = documentData.assets.colorAssets;
+				rawColors.forEach((colorObject) => {
+					const color = colorObject.color;
+					const colorInstance = new ColorFormatter({
+						r: Math.round(color.red * 255),
+						g: Math.round(color.green * 255),
+						b: Math.round(color.blue * 255),
+						a: color.alpha
+					});
+					if (!values.includes(colorInstance.hexToCss)) {
+						values.push(colorInstance.hexToCss);
+						let double = false;
+						const indexOf = colorNames.indexOf(colorInstance.colorName);
+						if (indexOf > -1) {
+							double = true;
+							colorsSet[indexOf].doubleName = true;
+						}
+
+						colorNames.push(colorInstance.colorName);
+
+						colorsSet.push({
+							name: colorObject.name || colorInstance.colorName,
+							ogName: colorInstance.colorName,
+							value: colorInstance.hexToCss,
+							projectId,
+							checked: false,
+							doubleName: double
+						});
+					}
+				});
+			}
+		});
+		colorsSet.forEach(async (color) => {
+			const colorExist = await Color.findOne({
+				raw: true,
+				where: {
+					value: color.value,
+					projectId,
+					ogName: color.ogName
+				}
 			});
-			await Color.create({
-				name: colorInstance.colorName,
-				value: colorInstance.hexToCss,
-				projectId: projectID
-			});
+			if (!colorExist) {
+				await Color.create(color);
+			}
+		});
+		next();
+	} catch (e) {
+		res.status(500).json({
+			code: 3,
+			message: 'Something went wrong, please try it again',
+			e
 		});
 	}
-
-	next();
 };
 
 class ColorFormatter {
@@ -218,4 +216,97 @@ module.exports = {
 	uploadSketchFiles,
 	unzipSketchFiles,
 	scanAllColors
+};
+
+//loop trough all files
+const unzipAllFiles = async (req, res, projectID, version) => {
+	return new Promise((resolve) => {
+		req.files.forEach(async (file, i) => {
+			await unzipThings(req, res, projectID, version, file);
+			if (i === req.files.length - 1) {
+				resolve();
+			}
+		});
+	});
+};
+
+const streamShizzle = async (stream, pathname) => {
+	return new Promise((resolve) => {
+		const file = fs.createWriteStream(pathname);
+		file.on('error', (err) => {
+			console.log('error', err);
+		});
+		stream.pipe(file);
+		file.on('finish', resolve);
+	});
+};
+
+const unzipThings = async (req, res, projectID, version, file) => {
+	return new Promise((resolve) => {
+		let index = 0;
+		//create zip instance of file
+		const zip = new StreamZip({
+			file: file.path
+		});
+		//on entry check zip file
+		res.locals.fileNames.push(
+			`./uploads/projects/${projectID}/${version}/unzip/${file.filename
+				.split('.zip')[0]
+				.toLowerCase()
+				.split(' ')
+				.join('_')}`
+		);
+		let count = 0;
+		zip.on('ready', () => {
+			count = zip.entriesCount;
+		});
+
+		zip.on('entry', async (entry) => {
+			var pathname = path.resolve(
+				`./uploads/projects/${projectID}/${version}/unzip/${file.filename
+					.split('.zip')[0]
+					.toLowerCase()
+					.split(' ')
+					.join('_')}`,
+				entry.name
+			);
+			//test if url is not malicious
+			if (
+				/\.\./.test(
+					path.relative(
+						`./uploads/projects/${projectID}/${version}/unzip/${file.filename
+							.split('.zip')[0]
+							.toLowerCase()
+							.split(' ')
+							.join('_')}`,
+						pathname
+					)
+				)
+			) {
+				console.warn('[zip warn]: ignoring maliciously crafted paths in zip file:', entry.name);
+				return;
+			}
+			await folderCreate(pathname);
+			//enter stream
+			zip.stream(entry.name, async (err, stream) => {
+				if (err) {
+					console.error('Error:', err.toString());
+					return;
+				}
+				await streamShizzle(stream, pathname);
+				index++;
+				if (index === count) {
+					resolve();
+					zip.close();
+				}
+			});
+		});
+	});
+};
+
+const folderCreate = (pathname) => {
+	return new Promise((resolve) => {
+		//create folders if there is one needed
+		mkdirp(path.dirname(pathname), resolve);
+	});
 };

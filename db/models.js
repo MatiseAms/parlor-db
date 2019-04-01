@@ -86,6 +86,18 @@ assets.forEach((asset) => {
 			validate: {
 				notEmpty: true
 			}
+		},
+		checked: {
+			type: Sequelize.BOOLEAN
+		},
+		doubleName: {
+			type: Sequelize.BOOLEAN
+		},
+		ogName: {
+			type: Sequelize.STRING,
+			validate: {
+				notEmpty: true
+			}
 		}
 	});
 	//all assets belong to the project

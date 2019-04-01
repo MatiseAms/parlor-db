@@ -131,14 +131,14 @@ const addNewUserToProject = async (req, res) => {
 			} else {
 				//if there is a user add that user
 				project.addUser(extraUser);
-				res.send({
+				res.status(201).json({
 					code: 0,
 					message: 'User has been added to the project'
 				});
 			}
 		}
 	} else {
-		res.send({
+		res.status(403).json({
 			code: 3,
 			message: 'You do not have the permission to do that'
 		});
@@ -183,7 +183,7 @@ const createNewProject = async (req, res) => {
 		//link user with the project
 		project.addUser(req.user);
 
-		res.send({
+		res.status(201).json({
 			code: 0,
 			message: 'Project created'
 		});
