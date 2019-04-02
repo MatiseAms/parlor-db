@@ -9,3 +9,4 @@ module.exports.logOut = loginFunctions.logOut;
 
 module.exports.projects = require('./projects');
 module.exports.sketch = require('./uploadSketch');
+module.exports.passportMiddleware = require('./passport');

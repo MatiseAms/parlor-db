@@ -1,21 +1,18 @@
-const fs = require('fs');
-const checkOrCreateFolder = (path) => {
-	if (!fs.existsSync(path)) {
-		fs.mkdirSync(path);
-	}
-};
+// const fs = require('fs');
+// const checkOrCreateFolder = (path) => {
+// 	if (!fs.existsSync(path)) {
+// 		fs.mkdirSync(path);
+// 	}
+// };
+const mkdirp = require('mkdirp');
+const path = require('path');
 
-module.exports = (path) => {
-	let strings = [];
-	if (Array.isArray(path)) {
-		strings.push('.');
-		path.forEach((singlePath) => {
-			strings.push(singlePath);
-			checkOrCreateFolder(strings.join('/'));
+const checkOrCreateFolder = (pathname) => {
+	return new Promise((resolve) => {
+		//create folders if there is one needed
+		mkdirp(path.dirname(pathname), (err) => {
+			if (!err) resolve();
 		});
-	} else if (typeof path === 'string') {
-		checkOrCreateFolder(path);
-		strings.push(path);
-	}
-	return strings.join('/');
+	});
 };
+module.exports = checkOrCreateFolder;

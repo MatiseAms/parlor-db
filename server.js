@@ -3,7 +3,7 @@ const app = express();
 const http = require('http').Server(app);
 const { db } = require('./db');
 const passport = require('passport');
-const { passportMiddleware } = require('./middleware');
+const { passportMiddleware } = require('./methods');
 
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
@@ -15,9 +15,8 @@ const { checkOrCreateFolder } = require('./methods');
 	await db.loadDB();
 
 	//create uploads folder if it wasn't there
-	checkOrCreateFolder('./uploads');
-	checkOrCreateFolder('./uploads/profile');
-	checkOrCreateFolder('./uploads/projects');
+	await checkOrCreateFolder('./uploads/profile/.');
+	await checkOrCreateFolder('./uploads/projects/.');
 
 	app
 		.use(cookieParser())
