@@ -1,5 +1,5 @@
 const { models, db } = require('../db');
-const { Project, User } = models;
+const { Project, User, Color, Typography, Grid } = models;
 const { Sequelize } = db;
 const Op = Sequelize.Op;
 /**
@@ -31,12 +31,22 @@ const getAllProjects = async (userID) => {
 			where: {
 				id: projectIDs
 			},
-			include: {
-				model: User,
-				attributes: ['id', 'username', 'email', 'image', 'firstName', 'lastName']
-			}
+			include: [
+				{
+					model: User,
+					attributes: ['id', 'username', 'email', 'image', 'firstName', 'lastName']
+				},
+				{
+					model: Color
+				},
+				{
+					model: Grid
+				},
+				{
+					model: Typography
+				}
+			]
 		});
-
 		return allProjects;
 	}
 	// empty array return
@@ -70,10 +80,21 @@ const getSingleProject = async (userID, projectID) => {
 			where: {
 				id: projectID
 			},
-			include: {
-				model: User,
-				attributes: ['id', 'username', 'email', 'image', 'firstName', 'lastName']
-			}
+			include: [
+				{
+					model: User,
+					attributes: ['id', 'username', 'email', 'image', 'firstName', 'lastName']
+				},
+				{
+					model: Color
+				},
+				{
+					model: Grid
+				},
+				{
+					model: Typography
+				}
+			]
 		});
 		return allProject;
 	}

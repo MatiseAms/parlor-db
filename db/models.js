@@ -101,7 +101,7 @@ assets.forEach((asset) => {
 		}
 	});
 	//all assets belong to the project
-	settings[asset].belongsTo(Project);
+	Project.hasMany(settings[asset]);
 });
 
 //export the settings so we can use them

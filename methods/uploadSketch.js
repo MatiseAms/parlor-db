@@ -56,8 +56,6 @@ const uploadSketchFiles = async (req, res, next) => {
 		// Upload file
 		upload.array('sketch')(req, res, (err) => {
 			if (err) {
-				console.log(err);
-				console.log('alles kaput');
 				res.status(403).json({
 					code: 1,
 					message: 'Something went wrong with your upload'
@@ -186,28 +184,21 @@ module.exports = {
  * @return Promise
  */
 const unzipAllFiles = (req, res, projectID, version) => {
-	return new Promise((resolve) => {
-		Promise.all(
+	return new Promise(async (resolve) => {
+		await Promise.all(
 			req.files.map(async (file) => {
 				const folderPath = `./uploads/projects/${projectID}/${version}/unzip/${file.filename
 					.split('.zip')[0]
 					.toLowerCase()
 					.split(' ')
 					.join('_')}`;
-				//save folder names
-				res.locals.fileNames.push(
-					`./uploads/projects/${projectID}/${version}/unzip/${file.filename
-						.split('.zip')[0]
-						.toLowerCase()
-						.split(' ')
-						.join('_')}`
-				);
 
+				//save folder names to next functiopn
+				res.locals.fileNames.push(folderPath);
 				return unzipSingleFile(folderPath, file);
 			})
-		).then(() => {
-			resolve();
-		});
+		);
+		resolve();
 	});
 };
 
@@ -310,6 +301,7 @@ class ColorFormatter {
 	changeRgbaToHex(val) {
 		let hex = {};
 		Object.keys(val).forEach((color) => {
+			//filter alpha cause hex doesnt support it
 			if (color === 'a') {
 				hex.a = val[color];
 			} else {

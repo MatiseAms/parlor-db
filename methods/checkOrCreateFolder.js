@@ -1,9 +1,3 @@
-// const fs = require('fs');
-// const checkOrCreateFolder = (path) => {
-// 	if (!fs.existsSync(path)) {
-// 		fs.mkdirSync(path);
-// 	}
-// };
 const mkdirp = require('mkdirp');
 const path = require('path');
 
