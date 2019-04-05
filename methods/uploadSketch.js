@@ -184,22 +184,19 @@ module.exports = {
  * @return Promise
  */
 const unzipAllFiles = (req, res, projectID, version) => {
-	return new Promise(async (resolve) => {
-		await Promise.all(
-			req.files.map(async (file) => {
-				const folderPath = `./uploads/projects/${projectID}/${version}/unzip/${file.filename
-					.split('.zip')[0]
-					.toLowerCase()
-					.split(' ')
-					.join('_')}`;
+	return Promise.all(
+		req.files.map((file) => {
+			const folderPath = `./uploads/projects/${projectID}/${version}/unzip/${file.filename
+				.split('.zip')[0]
+				.toLowerCase()
+				.split(' ')
+				.join('_')}`;
 
-				//save folder names to next functiopn
-				res.locals.fileNames.push(folderPath);
-				return unzipSingleFile(folderPath, file);
-			})
-		);
-		resolve();
-	});
+			//save folder names to next functiopn
+			res.locals.fileNames.push(folderPath);
+			return unzipSingleFile(folderPath, file);
+		})
+	);
 };
 
 /**
@@ -234,6 +231,7 @@ const unzipSingleFile = async (folderPath, file) => {
 			zip.stream(entry.name, async (err, stream) => {
 				if (err) {
 					console.error('Error:', err.toString());
+					index++;
 					return;
 				}
 				await streamToPipe(stream, pathname);
