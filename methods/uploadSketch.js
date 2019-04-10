@@ -82,28 +82,79 @@ const uploadSketchFiles = async (req, res, next) => {
  * @param {Int} res.locals.projectVersion - User session ID
  * @return Next() or Err
  */
-const unzipSketchFiles = async (req, res, next) => {
+const unzipSketchFiles = async (req, res) => {
 	const projectID = res.locals.projectID;
 	const version = res.locals.projectVersion;
 	res.locals.fileNames = [];
 	if (req.files) {
 		try {
 			await unzipAllFiles(req, res, projectID, version);
-			next();
+			return true;
 		} catch (e) {
-			res.status(500).json({
-				code: 3,
-				message: 'Something went wrong'
-			});
+			return false;
 		}
 	}
 };
 
-const scanAllColors = async (req, res, next) => {
-	const projectId = res.locals.projectID;
-	// uncomment this but for testing it is 1
-	// const projectVersion = res.locals.projectVersion;
-	const fileNames = res.locals.fileNames;
+const scanInfo = async (req, res, next) => {
+	const projectId = req.params.id;
+	const project = await Project.findByPk(projectId);
+	const version = project.version;
+	const fileNames = req.body.fileNames;
+	if (!fs.existsSync(`./uploads/projects/${projectId}/${version}/unzip`)) {
+		res.status(202).json({
+			code: 0,
+			message: 'Server is still processing the data, try again later'
+		});
+		return;
+	}
+	console.log('doe iets');
+	scanAllColors(projectId, fileNames);
+	scanAllDocumentTypo(projectId, fileNames);
+	res.send('ok');
+	// next();
+};
+
+module.exports = {
+	uploadSketchFiles,
+	unzipSketchFiles,
+	scanInfo
+};
+
+/**
+ * Helper functions
+ */
+/**
+ * unzipAllFiles - Unzip all files in req.riles async (waits for all files)
+ * @param {Obj} req - Express req
+ * @param {Obj} res - Express res
+ * @return Promise
+ */
+const unzipAllFiles = (req, res, projectID, version) => {
+	return Promise.all(
+		req.files.map((file) => {
+			const folderPath = `./uploads/projects/${projectID}/${version}/unzip/${file.filename
+				.split('.zip')[0]
+				.toLowerCase()
+				.split(' ')
+				.join('_')}`;
+
+			//save folder names to next functiopn
+			res.locals.fileNames.push(folderPath);
+			return unzipSingleFile(folderPath, file);
+		})
+	);
+};
+const scanAllDocumentTypo = (projectId, fileNames) => {
+	fileNames.forEach((file) => {
+		const rawdata = fs.readFileSync(`${file}/document.json`);
+		const documentData = JSON.parse(rawdata);
+		const names = documentData.layerTextStyles.objects.map((typo) => typo.name);
+		console.log(names);
+	});
+};
+
+const scanAllColors = (projectId, fileNames) => {
 	let colorsSet = [];
 	let colorNames = [];
 	let values = [];
@@ -149,7 +200,6 @@ const scanAllColors = async (req, res, next) => {
 			const colorExist = await Color.findOne({
 				raw: true,
 				where: {
-					value: color.value,
 					projectId,
 					ogName: color.ogName
 				}
@@ -158,45 +208,10 @@ const scanAllColors = async (req, res, next) => {
 				await Color.create(color);
 			}
 		});
-		next();
+		return true;
 	} catch (e) {
-		res.status(500).json({
-			code: 3,
-			message: 'Something went wrong, please try it again',
-			e
-		});
+		return false;
 	}
-};
-
-module.exports = {
-	uploadSketchFiles,
-	unzipSketchFiles,
-	scanAllColors
-};
-
-/**
- * Helper functions
- */
-/**
- * unzipAllFiles - Unzip all files in req.riles async (waits for all files)
- * @param {Obj} req - Express req
- * @param {Obj} res - Express res
- * @return Promise
- */
-const unzipAllFiles = (req, res, projectID, version) => {
-	return Promise.all(
-		req.files.map((file) => {
-			const folderPath = `./uploads/projects/${projectID}/${version}/unzip/${file.filename
-				.split('.zip')[0]
-				.toLowerCase()
-				.split(' ')
-				.join('_')}`;
-
-			//save folder names to next functiopn
-			res.locals.fileNames.push(folderPath);
-			return unzipSingleFile(folderPath, file);
-		})
-	);
 };
 
 /**
