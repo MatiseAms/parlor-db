@@ -108,7 +108,6 @@ const scanInfo = async (req, res, next) => {
 		});
 		return;
 	}
-	console.log('doe iets');
 	scanAllColors(projectId, fileNames);
 	scanAllDocumentTypo(projectId, fileNames);
 	res.send('ok');
@@ -146,11 +145,75 @@ const unzipAllFiles = (req, res, projectID, version) => {
 	);
 };
 const scanAllDocumentTypo = (projectId, fileNames) => {
-	fileNames.forEach((file) => {
+	let allTypo = {};
+	fileNames.map((file) => {
 		const rawdata = fs.readFileSync(`${file}/document.json`);
 		const documentData = JSON.parse(rawdata);
-		const names = documentData.layerTextStyles.objects.map((typo) => typo.name);
-		console.log(names);
+		// foreignTextStyles .localSharedStyle
+		documentData.layerTextStyles.objects.forEach((typo) => {
+			const name = typo.name.split('/').map((singleName) => singleName.toLowerCase());
+			const possibilities = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p'];
+			name.forEach((singleName) => {
+				if (possibilities.includes(singleName)) {
+					const indexOf = name.indexOf(singleName);
+					name.splice(indexOf, 1);
+					const obj = {
+						name,
+						value: {
+							color: typo.value.textStyle.encodedAttributes.MSAttributedStringColorAttribute,
+							font: {
+								name: typo.value.textStyle.encodedAttributes.MSAttributedStringFontAttribute.attributes.name,
+								size: typo.value.textStyle.encodedAttributes.MSAttributedStringFontAttribute.attributes.size
+							},
+							kerning: typo.value.textStyle.encodedAttributes.kerning,
+							size: typo.value.textStyle.encodedAttributes.paragraphStyle
+						}
+					};
+
+					if (!allTypo[singleName]) {
+						allTypo[singleName] = {
+							allValues: [obj],
+							allSizes: [typo.value.textStyle.encodedAttributes.MSAttributedStringFontAttribute.attributes.size]
+						};
+					} else {
+						allTypo[singleName].allValues.push(obj);
+						allTypo[singleName].allSizes.push(
+							typo.value.textStyle.encodedAttributes.MSAttributedStringFontAttribute.attributes.size
+						);
+					}
+				}
+			});
+		});
+	});
+	Object.keys(allTypo).forEach((key) => {
+		// key is equal to h1 or lower
+		const allValues = allTypo[key].allValues;
+		const minSize = Math.min(...allTypo[key].allSizes);
+		const maxSize = Math.max(...allTypo[key].allSizes);
+		allValues.forEach((typo) => {
+			//we need to check if the typo contains our size
+			const names = typo.name;
+			const filterNames = [
+				'375',
+				'mobile',
+				'tablet',
+				'smalldesktop',
+				'768',
+				'landscape',
+				'1920',
+				'1440',
+				'desktop',
+				'full'
+			];
+			names.forEach((name) => {
+				if (filterNames.includes(name)) {
+					const indexOf = names.indexOf(name);
+					names.splice(indexOf, 1);
+				}
+			});
+			console.log(names, key);
+			// const mobileSize = typo.find(())
+		});
 	});
 };
 
