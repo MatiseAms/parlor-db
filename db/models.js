@@ -65,7 +65,6 @@ const Color = Database.define('color', {
 		}
 	},
 	value: {
-		primaryKey: true,
 		type: Sequelize.STRING,
 		validate: {
 			notEmpty: true
@@ -87,7 +86,6 @@ const Color = Database.define('color', {
 
 const Typography = Database.define('typography', {
 	key: {
-		primaryKey: true,
 		type: Sequelize.STRING,
 		validate: {
 			notEmpty: true
@@ -107,28 +105,16 @@ const Typography = Database.define('typography', {
 		}
 	},
 	minSize: {
-		type: Sequelize.NUMBER,
-		validate: {
-			notEmpty: true
-		}
+		type: Sequelize.NUMBER
 	},
 	baseSize: {
-		type: Sequelize.NUMBER,
-		validate: {
-			notEmpty: true
-		}
+		type: Sequelize.NUMBER
 	},
 	hasItalic: {
-		type: Sequelize.BOOLEAN,
-		validate: {
-			notEmpty: true
-		}
+		type: Sequelize.BOOLEAN
 	},
 	weight: {
 		type: Sequelize.STRING,
-		validate: {
-			notEmpty: true
-		},
 		get() {
 			const value = this.getDataValue('weight');
 			return JSON.parse(value);
@@ -136,6 +122,9 @@ const Typography = Database.define('typography', {
 		set(val) {
 			this.setDataValue('weight', JSON.stringify(val));
 		}
+	},
+	kerning: {
+		type: Sequelize.INTEGER
 	},
 	family: {
 		type: Sequelize.STRING,

@@ -112,7 +112,7 @@ const unzipSketchFiles = async (req, res) => {
 	}
 };
 
-const scanInfo = async (req, res) => {
+const scallAllData = async (req, res) => {
 	const projectId = req.params.id;
 	const project = await Project.findByPk(projectId);
 
@@ -137,7 +137,6 @@ const scanInfo = async (req, res) => {
 	}
 
 	const version = project.version;
-	const fileNames = req.body.fileNames;
 
 	if (!fs.existsSync(`./uploads/projects/${projectId}/${version}/unzip`)) {
 		res.status(202).json({
@@ -146,44 +145,36 @@ const scanInfo = async (req, res) => {
 		});
 		return;
 	}
-	scanAllColors(projectId, fileNames);
-	scanAllDocumentTypo(projectId, fileNames);
-	res.send('ok');
-	// next();
+
+	const projectFolder = `./uploads/projects/${projectId}/${version}/unzip/`;
+	fs.readdir(projectFolder, (err, files) => {
+		const fileNames = files.map((file) => projectFolder + file);
+		scanAllColors(projectId, fileNames);
+		scallAllTypo(projectId, fileNames);
+
+		res.status(201).json({
+			code: 0,
+			message: 'Scan succesful'
+		});
+	});
 };
 
 module.exports = {
 	uploadSketchFiles,
 	unzipSketchFiles,
-	scanInfo
+	scallAllData
 };
 
 /**
  * Helper functions
  */
 /**
- * unzipAllFiles - Unzip all files in req.riles async (waits for all files)
- * @param {Obj} req - Express req
- * @param {Obj} res - Express res
- * @return Promise
+ * scallAllTypo - Scan and save all document typography
+ * @param {Obj} projectId - ProjectID
+ * @param {Obj} fileNames - All file names
+ * @return Saves everything
  */
-const unzipAllFiles = (req, res, projectID, version) => {
-	return Promise.all(
-		req.files.map((file) => {
-			const folderPath = `./uploads/projects/${projectID}/${version}/unzip/${file.filename
-				.split('.zip')[0]
-				.toLowerCase()
-				.split(' ')
-				.join('_')}`;
-
-			//save folder names to next functiopn
-			res.locals.fileNames.push(folderPath);
-			return unzipSingleFile(folderPath, file);
-		})
-	);
-};
-
-const scanAllDocumentTypo = (projectId, fileNames) => {
+const scallAllTypo = (projectId, fileNames) => {
 	let allTypo = {};
 	fileNames.map((file) => {
 		const rawdata = fs.readFileSync(`${file}/document.json`);
@@ -211,7 +202,7 @@ const scanAllDocumentTypo = (projectId, fileNames) => {
 		const fontObj = uniqueFonts
 			.map((font) => {
 				if (font.toLowerCase().indexOf('-ita') === -1) {
-					const fontSplit = uniqueFonts[0].split('-');
+					const fontSplit = font.split('-');
 					const fontWeight = fontSplit[1] || 'Regular';
 					return {
 						fontFamily: fontSplit[0],
@@ -220,13 +211,14 @@ const scanAllDocumentTypo = (projectId, fileNames) => {
 				}
 			})
 			.filter((font) => font);
-
 		const colors = [...new Set(allValues.map((typo) => typo.color))];
 		//we can assume that a typo setting has the same font but different weights.
 		const minSize = Math.min(...allSizes);
 		const baseSize = Math.max(...allSizes);
 
 		const hasItalic = allValues.map((typo) => typo.hasItalicVariant).includes(true);
+
+		const allKerning = [...new Set(allValues.map((typo) => typo.kerning))];
 		return {
 			key,
 			colors,
@@ -234,10 +226,10 @@ const scanAllDocumentTypo = (projectId, fileNames) => {
 			baseSize,
 			hasItalic,
 			fontWeights: fontObj.map((font) => font.fontWeight),
-			fontFamily: fontObj[0].fontFamily
+			fontFamily: fontObj[0].fontFamily,
+			kerning: Math.round(allKerning[0] * 100) / 100 || 0
 		};
 	});
-	console.log(fonts);
 
 	fonts.forEach(async (font) => {
 		const fontExist = await Typography.findOne({
@@ -247,17 +239,22 @@ const scanAllDocumentTypo = (projectId, fileNames) => {
 			}
 		});
 		if (!fontExist) {
-			await Typography.create({
-				key: font.key,
-				colors: font.colors,
-				minSize: font.minSize,
-				baseSize: font.baseSize,
-				hasItalic: font.hasItalic,
-				weight: font.fontWeights,
-				family: font.fontFamily,
-				checked: false,
-				projectId
-			});
+			try {
+				await Typography.create({
+					key: font.key,
+					colors: font.colors,
+					minSize: font.minSize,
+					baseSize: font.baseSize,
+					hasItalic: font.hasItalic,
+					weight: font.fontWeights,
+					family: font.fontFamily,
+					kerning: font.kerning,
+					checked: false,
+					projectId
+				});
+			} catch (e) {
+				console.log(e);
+			}
 		} else {
 			await fontExist.update({
 				key: font.key,
@@ -266,6 +263,7 @@ const scanAllDocumentTypo = (projectId, fileNames) => {
 				baseSize: font.baseSize,
 				hasItalic: font.hasItalic,
 				weight: font.fontWeights,
+				kerning: font.kerning,
 				family: font.fontFamily,
 				checked: false
 			});
@@ -273,73 +271,12 @@ const scanAllDocumentTypo = (projectId, fileNames) => {
 	});
 };
 
-const divideTypo = (typo) => {
-	const names = typo.name.split('/').map((singleName) => singleName.toLowerCase());
-	const elementPossibilities = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p'];
-	const formatPossibilities = [
-		'375',
-		'mobile',
-		'tablet',
-		'smalldesktop',
-		'768',
-		'landscape',
-		'1920',
-		'1440',
-		'desktop',
-		'full'
-	];
-	//first we divide the element
-
-	const element = names.find((name) => {
-		if (elementPossibilities.includes(name)) {
-			const indexOf = names.indexOf(name);
-			names.splice(indexOf, 1);
-			return name;
-		}
-	});
-
-	if (!element) {
-		return;
-	}
-
-	const size = typo.value.textStyle.encodedAttributes.MSAttributedStringFontAttribute.attributes.size;
-
-	const format = names.find((name) => {
-		if (formatPossibilities.includes(name)) {
-			const indexOf = names.indexOf(name);
-			names.splice(indexOf, 1);
-			return name;
-		}
-	});
-
-	//p has no format difference
-	if (!format && element !== 'p') {
-		return;
-	}
-
-	const hasItalicVariant = names.includes('italic');
-
-	const colorObject = typo.value.textStyle.encodedAttributes.MSAttributedStringColorAttribute;
-	const colorInstance = new ColorFormatter({
-		r: Math.round(colorObject.red * 255),
-		g: Math.round(colorObject.green * 255),
-		b: Math.round(colorObject.blue * 255),
-		a: colorObject.alpha
-	});
-
-	return {
-		element,
-		size,
-		format,
-		fontFamily: typo.value.textStyle.encodedAttributes.MSAttributedStringFontAttribute.attributes.name,
-		color: colorInstance.hexToCss,
-		kerning: typo.value.textStyle.encodedAttributes.kerning,
-		lineheight: typo.value.textStyle.encodedAttributes.paragraphStyle.maximumLineHeight,
-		hasItalicVariant,
-		variables: names
-	};
-};
-
+/**
+ * scanAllColors - Scan and save all document colors
+ * @param {Obj} projectId - ProjectID
+ * @param {Obj} fileNames - All file names
+ * @return Saves everything
+ */
 const scanAllColors = (projectId, fileNames) => {
 	let colorsSet = [];
 	let colorNames = [];
@@ -401,8 +338,33 @@ const scanAllColors = (projectId, fileNames) => {
 };
 
 /**
+ * unzipAllFiles - Unzip all files in req.riles async (waits for all files)
+ * @dependend unzipSingleFile
+ * @dependend streamToPipe
+ * @param {Obj} req - Express req
+ * @param {Obj} res - Express res
+ * @return Promise
+ */
+const unzipAllFiles = (req, res, projectID, version) => {
+	return Promise.all(
+		req.files.map((file) => {
+			const folderPath = `./uploads/projects/${projectID}/${version}/unzip/${file.filename
+				.split('.zip')[0]
+				.toLowerCase()
+				.split(' ')
+				.join('_')}`;
+
+			//save folder names to next functiopn
+			res.locals.fileNames.push(folderPath);
+			return unzipSingleFile(folderPath, file);
+		})
+	);
+};
+
+/**
  * unzipAllFiles - Opens up zip and opens a promise stream for each file, looops trough all files and waits on finish to resolve
  * @param {String} folderPath - The path where the file needs to be saved
+ * @dependend streamToPipe
  * @param {Obj} file - The zipped file
  * @return Promise
  */
@@ -518,3 +480,75 @@ class ColorFormatter {
 		return this.name;
 	}
 }
+
+/**
+ * divideTypo - Manage all typo and save it to each element like H1
+ * @param {Obj} typo - Typo object out of sketch
+ * @return Readable typo object
+ */
+const divideTypo = (typo) => {
+	const names = typo.name.split('/').map((singleName) => singleName.toLowerCase());
+	const elementPossibilities = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p'];
+	const formatPossibilities = [
+		'375',
+		'mobile',
+		'tablet',
+		'smalldesktop',
+		'768',
+		'landscape',
+		'1920',
+		'1440',
+		'desktop',
+		'full'
+	];
+	//first we divide the element
+
+	const element = names.find((name) => {
+		if (elementPossibilities.includes(name)) {
+			const indexOf = names.indexOf(name);
+			names.splice(indexOf, 1);
+			return name;
+		}
+	});
+
+	if (!element) {
+		return;
+	}
+
+	const size = typo.value.textStyle.encodedAttributes.MSAttributedStringFontAttribute.attributes.size;
+
+	const format = names.find((name) => {
+		if (formatPossibilities.includes(name)) {
+			const indexOf = names.indexOf(name);
+			names.splice(indexOf, 1);
+			return name;
+		}
+	});
+
+	//p has no format difference
+	if (!format && element !== 'p') {
+		return;
+	}
+
+	const hasItalicVariant = names.includes('italic');
+
+	const colorObject = typo.value.textStyle.encodedAttributes.MSAttributedStringColorAttribute;
+	const colorInstance = new ColorFormatter({
+		r: Math.round(colorObject.red * 255),
+		g: Math.round(colorObject.green * 255),
+		b: Math.round(colorObject.blue * 255),
+		a: colorObject.alpha
+	});
+
+	return {
+		element,
+		size,
+		format,
+		fontFamily: typo.value.textStyle.encodedAttributes.MSAttributedStringFontAttribute.attributes.name,
+		color: colorInstance.hexToCss,
+		kerning: typo.value.textStyle.encodedAttributes.kerning,
+		lineheight: typo.value.textStyle.encodedAttributes.paragraphStyle.maximumLineHeight,
+		hasItalicVariant,
+		variables: names
+	};
+};

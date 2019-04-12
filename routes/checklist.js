@@ -1,5 +1,5 @@
 const { isLoggedIn, sketch } = require('../methods');
-const { uploadSketchFiles, unzipSketchFiles, scanInfo } = sketch;
+const { uploadSketchFiles, unzipSketchFiles, scallAllData } = sketch;
 
 module.exports = (app) => {
 	/**
@@ -30,5 +30,5 @@ module.exports = (app) => {
 	 * @middleware uploadSketchFiles
 	 * @middleware unzipSketchFiles
 	 */
-	app.post('/project/:id/upload/scan', scanInfo);
+	app.post('/project/:id/upload/scan', scallAllData);
 };
