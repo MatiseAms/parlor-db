@@ -57,6 +57,109 @@ const Project = Database.define('project', {
 	}
 });
 
+const Color = Database.define('color', {
+	name: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	value: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	checked: {
+		type: Sequelize.BOOLEAN
+	},
+	doubleName: {
+		type: Sequelize.BOOLEAN
+	},
+	ogName: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	}
+});
+
+const Typography = Database.define('typography', {
+	key: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	colors: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	minSize: {
+		type: Sequelize.NUMBER,
+		validate: {
+			notEmpty: true
+		}
+	},
+	baseSize: {
+		type: Sequelize.NUMBER,
+		validate: {
+			notEmpty: true
+		}
+	},
+	hasItalic: {
+		type: Sequelize.BOOLEAN,
+		validate: {
+			notEmpty: true
+		}
+	},
+	weight: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	family: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	checked: {
+		type: Sequelize.BOOLEAN
+	}
+});
+
+const Grid = Database.define('grid', {
+	name: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	value: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	},
+	checked: {
+		type: Sequelize.BOOLEAN
+	},
+	doubleName: {
+		type: Sequelize.BOOLEAN
+	},
+	ogName: {
+		type: Sequelize.STRING,
+		validate: {
+			notEmpty: true
+		}
+	}
+});
+
+//assosiations
 Project.belongsToMany(User, {
 	through: 'projectsToUsers'
 });
@@ -64,45 +167,19 @@ Project.belongsToMany(User, {
 User.belongsToMany(Project, {
 	through: 'projectsToUsers'
 });
+Project.hasMany(Color);
 
-let settings = {
+Project.hasMany(Typography);
+
+Project.hasMany(Grid);
+
+const settings = {
 	User,
-	Project
+	Color,
+	Typography,
+	Project,
+	Grid
 };
-
-//create a database for every asset
-const assets = ['Typography', 'Color', 'Static', 'Grid'];
-
-assets.forEach((asset) => {
-	settings[asset] = Database.define(asset.toLowerCase(), {
-		name: {
-			type: Sequelize.STRING,
-			validate: {
-				notEmpty: true
-			}
-		},
-		value: {
-			type: Sequelize.STRING,
-			validate: {
-				notEmpty: true
-			}
-		},
-		checked: {
-			type: Sequelize.BOOLEAN
-		},
-		doubleName: {
-			type: Sequelize.BOOLEAN
-		},
-		ogName: {
-			type: Sequelize.STRING,
-			validate: {
-				notEmpty: true
-			}
-		}
-	});
-	//all assets belong to the project
-	Project.hasMany(settings[asset]);
-});
 
 //export the settings so we can use them
 module.exports = settings;
