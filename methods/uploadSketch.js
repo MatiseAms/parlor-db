@@ -18,12 +18,19 @@ const uploadSketchFiles = async (req, res, next) => {
 	//we need a version to extract the files into
 	const project = await Project.findByPk(projectID);
 	const user = await User.findByPk(req.user.id);
+
+	if (!project) {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+		return;
+	}
 	//check if user belongs to project
 	const projectHasUser = await project.hasUser(user);
 	//if there is a user continue
 	if (projectHasUser) {
 		//increment project (returns old project)
-		await project.increment('version');
 
 		//create folder structure
 		//dots on end have to be there cause mkdirp function only makes directorys and won't recognize if there is no end on the file
@@ -54,18 +61,27 @@ const uploadSketchFiles = async (req, res, next) => {
 		});
 
 		// Upload file
-		upload.array('sketch')(req, res, (err) => {
+		upload.array('sketch')(req, res, async (err) => {
 			if (err) {
 				res.status(403).json({
 					code: 1,
 					message: 'Something went wrong with your upload'
 				});
 			} else {
-				//save project ID for unzipping
-				res.locals.projectID = projectID;
-				res.locals.projectVersion = version;
-				//next function is unzipSketchFiles
-				next();
+				if (req.files) {
+					//save project ID for unzipping
+					res.locals.projectID = projectID;
+					res.locals.projectVersion = version;
+					//next function is unzipSketchFiles
+					await project.increment('version');
+					next();
+				} else {
+					res.status(500).json({
+						code: 3,
+						message: 'Something went wrong'
+					});
+					return;
+				}
 			}
 		});
 	} else {
@@ -96,7 +112,7 @@ const unzipSketchFiles = async (req, res) => {
 	}
 };
 
-const scanInfo = async (req, res, next) => {
+const scanInfo = async (req, res) => {
 	const projectId = req.params.id;
 	const project = await Project.findByPk(projectId);
 
@@ -233,11 +249,11 @@ const scanAllDocumentTypo = (projectId, fileNames) => {
 		if (!fontExist) {
 			await Typography.create({
 				key: font.key,
-				colors: JSON.stringify(font.colors),
+				colors: font.colors,
 				minSize: font.minSize,
 				baseSize: font.baseSize,
 				hasItalic: font.hasItalic,
-				weight: JSON.stringify(font.fontWeights),
+				weight: font.fontWeights,
 				family: font.fontFamily,
 				checked: false,
 				projectId
@@ -245,11 +261,11 @@ const scanAllDocumentTypo = (projectId, fileNames) => {
 		} else {
 			await fontExist.update({
 				key: font.key,
-				colors: JSON.stringify(font.colors),
+				colors: font.colors,
 				minSize: font.minSize,
 				baseSize: font.baseSize,
 				hasItalic: font.hasItalic,
-				weight: JSON.stringify(font.fontWeights),
+				weight: font.fontWeights,
 				family: font.fontFamily,
 				checked: false
 			});
