@@ -2,7 +2,7 @@ const path = require('path');
 const multer = require('multer');
 const checkOrCreateFolder = require('./checkOrCreateFolder');
 const { models } = require('../db');
-const { Project, User, Color, Typography } = models;
+const { Project, User, Color, Typography, Grid } = models;
 const ntc = require('ntc');
 const StreamZip = require('node-stream-zip');
 const fs = require('fs');
@@ -112,6 +112,11 @@ const unzipSketchFiles = async (req, res) => {
 	}
 };
 
+/**
+ * scallAllData - Function that calls all scan functions
+ * @param {Int} req.params.id - Project ID
+ * @return Express response
+ */
 const scallAllData = async (req, res) => {
 	const projectId = req.params.id;
 	const project = await Project.findByPk(projectId);
@@ -138,7 +143,10 @@ const scallAllData = async (req, res) => {
 
 	const version = project.version;
 
-	if (!fs.existsSync(`./uploads/projects/${projectId}/${version}/unzip`)) {
+	//little fallback if the unzipping is not done yet
+	const projectFolder = `./uploads/projects/${projectId}/${version}/unzip/`;
+	//
+	if (!fs.existsSync(projectFolder)) {
 		res.status(202).json({
 			code: 0,
 			message: 'Server is still processing the data, try again later'
@@ -146,11 +154,12 @@ const scallAllData = async (req, res) => {
 		return;
 	}
 
-	const projectFolder = `./uploads/projects/${projectId}/${version}/unzip/`;
 	fs.readdir(projectFolder, (err, files) => {
+		//filenames are relative for security, bind them with project folder
 		const fileNames = files.map((file) => projectFolder + file);
 		scanAllColors(projectId, fileNames);
-		scallAllTypo(projectId, fileNames);
+		scanAllTypo(projectId, fileNames);
+		scanGrid(projectId, fileNames);
 
 		res.status(201).json({
 			code: 0,
@@ -168,15 +177,82 @@ module.exports = {
 /**
  * Helper functions
  */
-/**
- * scallAllTypo - Scan and save all document typography
+
+/*
+ * scanGrid - Scan and save all grid settings
  * @param {Obj} projectId - ProjectID
  * @param {Obj} fileNames - All file names
  * @return Saves everything
  */
-const scallAllTypo = (projectId, fileNames) => {
+const scanGrid = async (projectId, fileNames) => {
+	const pages = fileNames
+		.map((file) => {
+			const rawdata = fs.readFileSync(`${file}/meta.json`);
+			const documentData = JSON.parse(rawdata);
+			const pageName = Object.keys(documentData.pagesAndArtboards).find((artboard) => {
+				if (
+					documentData.pagesAndArtboards[artboard].name.indexOf('1440*900') !== -1 ||
+					documentData.pagesAndArtboards[artboard].name.indexOf('1920*1080') !== -1
+				) {
+					return true;
+				}
+			});
+			return {
+				pageName,
+				file
+			};
+		})
+		.filter((page) => page.pageName);
+	const allColumns = [
+		...new Set(
+			pages.map((page) => {
+				const rawdata = fs.readFileSync(`${page.file}/pages/${page.pageName}.json`);
+				const documentData = JSON.parse(rawdata);
+				const columns = [...new Set(documentData.layers.map((layer) => layer.layout.numberOfColumns))];
+				if (columns.length === 1) {
+					return columns[0];
+				} else {
+					//write a fallback for later, now just take the 24 or else the first item
+					return columns.includes(24) ? 24 : columns[0];
+				}
+			})
+		)
+	];
+	let columnAmount = 24;
+	if (allColumns.length === 1) {
+		columnAmount = allColumns[0];
+	} else {
+		//write a fallback for later, now just take the 24 or else the first item
+		columnAmount = allColumns.includes(24) ? 24 : allColumns[0];
+	}
+	const olderGrid = await Grid.findOne({
+		where: {
+			projectId
+		}
+	});
+	if (olderGrid) {
+		await olderGrid.update({
+			value: columnAmount,
+			checked: false
+		});
+	} else {
+		await Grid.create({
+			value: columnAmount,
+			projectId,
+			checked: false
+		});
+	}
+};
+
+/**
+ * scanAllTypo - Scan and save all document typography
+ * @param {Obj} projectId - ProjectID
+ * @param {Obj} fileNames - All file names
+ * @return Saves everything
+ */
+const scanAllTypo = (projectId, fileNames) => {
 	let allTypo = {};
-	fileNames.map((file) => {
+	fileNames.forEach((file) => {
 		const rawdata = fs.readFileSync(`${file}/document.json`);
 		const documentData = JSON.parse(rawdata);
 		// foreignTextStyles .localSharedStyle
@@ -219,12 +295,26 @@ const scallAllTypo = (projectId, fileNames) => {
 		const hasItalic = allValues.map((typo) => typo.hasItalicVariant).includes(true);
 
 		const allKerning = [...new Set(allValues.map((typo) => typo.kerning))];
+		const allLineheight = [...new Set(allValues.map((typo) => typo.lineheight))].filter((typo) => typo);
+		const minLineheightPx = Math.min(...allLineheight);
+		const maximumLineHeightPx = Math.max(...allLineheight);
+
+		const minLineheight = Math.round((minLineheightPx / minSize) * 100) / 100;
+		const maxLineheigt = Math.round((maximumLineHeightPx / baseSize) * 100) / 100;
+
+		let lineheight;
+		if (minLineheight === maxLineheigt) {
+			lineheight = minLineheight;
+		} else {
+			lineheight = (maxLineheigt + minLineheight) / 2;
+		}
 		return {
 			key,
 			colors,
 			minSize,
 			baseSize,
 			hasItalic,
+			lineheight,
 			fontWeights: fontObj.map((font) => font.fontWeight),
 			fontFamily: fontObj[0].fontFamily,
 			kerning: Math.round(allKerning[0] * 100) / 100 || 0
@@ -245,6 +335,7 @@ const scallAllTypo = (projectId, fileNames) => {
 					colors: font.colors,
 					minSize: font.minSize,
 					baseSize: font.baseSize,
+					lineheight: font.lineheight,
 					hasItalic: font.hasItalic,
 					weight: font.fontWeights,
 					family: font.fontFamily,
@@ -261,6 +352,7 @@ const scallAllTypo = (projectId, fileNames) => {
 				colors: font.colors,
 				minSize: font.minSize,
 				baseSize: font.baseSize,
+				lineheight: font.lineheight,
 				hasItalic: font.hasItalic,
 				weight: font.fontWeights,
 				kerning: font.kerning,
@@ -539,7 +631,7 @@ const divideTypo = (typo) => {
 		b: Math.round(colorObject.blue * 255),
 		a: colorObject.alpha
 	});
-
+	console.log(typo);
 	return {
 		element,
 		size,

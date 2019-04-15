@@ -126,6 +126,9 @@ const Typography = Database.define('typography', {
 	kerning: {
 		type: Sequelize.INTEGER
 	},
+	lineheight: {
+		type: Sequelize.INTEGER
+	},
 	family: {
 		type: Sequelize.STRING,
 		validate: {
@@ -138,29 +141,14 @@ const Typography = Database.define('typography', {
 });
 
 const Grid = Database.define('grid', {
-	name: {
-		type: Sequelize.STRING,
-		validate: {
-			notEmpty: true
-		}
-	},
 	value: {
-		type: Sequelize.STRING,
+		type: Sequelize.INTEGER,
 		validate: {
 			notEmpty: true
 		}
 	},
 	checked: {
 		type: Sequelize.BOOLEAN
-	},
-	doubleName: {
-		type: Sequelize.BOOLEAN
-	},
-	ogName: {
-		type: Sequelize.STRING,
-		validate: {
-			notEmpty: true
-		}
 	}
 });
 
