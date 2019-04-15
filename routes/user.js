@@ -26,7 +26,11 @@ module.exports = (app, passport) => {
 					if (err) return next(err);
 					//save session and redirect to projects or dasboard
 					req.session.save(() => {
-						res.redirect('/projects');
+						res.status(200).json({
+							code: 4,
+							message: 'redirect',
+							redirect: `/projects`
+						});
 					});
 				});
 			} else {
@@ -51,9 +55,17 @@ module.exports = (app, passport) => {
 					if (err) return next(err);
 					req.session.save(() => {
 						if (req.query.redirect) {
-							res.redirect(req.query.redirect);
+							res.status(200).json({
+								code: 4,
+								message: 'redirect',
+								redirect: req.query.redirect
+							});
 						} else {
-							res.redirect('/projects');
+							res.status(200).json({
+								code: 4,
+								message: 'redirect',
+								redirect: '/projects'
+							});
 						}
 					});
 				});
@@ -133,7 +145,11 @@ module.exports = (app, passport) => {
 		});
 		//dubble check if user is logged in
 		if (!user) {
-			res.redirect('/login');
+			res.status(200).json({
+				code: 4,
+				message: 'redirect',
+				redirect: `/login`
+			});
 		}
 
 		//isSamePassword check (bcrypt)
