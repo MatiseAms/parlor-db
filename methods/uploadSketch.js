@@ -73,7 +73,9 @@ const uploadSketchFiles = async (req, res, next) => {
 					res.locals.projectID = projectID;
 					res.locals.projectVersion = version;
 					//next function is unzipSketchFiles
-					await project.increment('version');
+					await project.update({
+						version
+					});
 					next();
 				} else {
 					res.status(500).json({
@@ -631,7 +633,6 @@ const divideTypo = (typo) => {
 		b: Math.round(colorObject.blue * 255),
 		a: colorObject.alpha
 	});
-	console.log(typo);
 	return {
 		element,
 		size,
