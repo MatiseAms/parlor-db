@@ -50,7 +50,7 @@ const getAllProjects = async (userID) => {
 		return allProjects;
 	}
 	// empty array return
-	return false;
+	return [];
 };
 
 /**

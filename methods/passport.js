@@ -26,7 +26,7 @@ module.exports = (passport) => {
 								email: req.body.email
 							},
 							{
-								username
+								username: username.toLowerCase()
 							}
 						]
 					}
@@ -34,19 +34,21 @@ module.exports = (passport) => {
 
 				if (userExist && userExist.email === req.body.email) {
 					return done(null, false, {
-						code: 1, // 1 stands for: your request can't be procesed
-						message: 'That email is already taken'
+						code: 5,
+						message: 'That email is already taken',
+						error: 'email'
 					});
 				} else if (userExist && userExist.username === username) {
 					return done(null, false, {
-						code: 1, // 1 stands for: your request can't be procesed
-						message: 'That username is already taken'
+						code: 5,
+						message: 'That username is already taken',
+						error: 'username'
 					});
 				} else {
 					const hash = await bcrypt.hash(password, 10);
 					try {
 						const userCreated = await User.create({
-							username: username,
+							username: username.toLowerCase(),
 							email: req.body.email,
 							password: hash,
 							firstName: req.body.fName,
@@ -84,7 +86,7 @@ module.exports = (passport) => {
 								email: username
 							},
 							{
-								username
+								username: username.toLowerCase()
 							}
 						]
 					}
@@ -93,15 +95,17 @@ module.exports = (passport) => {
 				//still no user, there is no user
 				if (!user) {
 					return done(null, false, {
-						code: 1,
-						message: 'Username is incorrect, your username can also be your email'
+						code: 5,
+						message: 'Username is incorrect, your username can also be your email',
+						error: 'username'
 					});
 				}
 
 				if (!isValidPassword(user.password, password)) {
 					return done(null, false, {
-						code: 1,
-						message: 'Incorrect password.'
+						code: 5,
+						message: 'Incorrect password',
+						error: 'password'
 					});
 				}
 				return done(null, user);

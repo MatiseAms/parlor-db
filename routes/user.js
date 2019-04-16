@@ -20,6 +20,10 @@ module.exports = (app, passport) => {
 		passport.authenticate('local-signup', (err, user, info) => {
 			//return err if there is one
 			if (err) return next(err);
+			if (info && info.code === 5) {
+				res.send(info);
+				return;
+			}
 			//when there is a user try to log it in
 			if (user) {
 				req.login(user, (err) => {
@@ -29,7 +33,8 @@ module.exports = (app, passport) => {
 						res.status(200).json({
 							code: 4,
 							message: 'redirect',
-							redirect: `/projects`
+							redirect: `/projects`,
+							fName: user.firstName
 						});
 					});
 				});
@@ -50,6 +55,10 @@ module.exports = (app, passport) => {
 	app.post('/login', (req, res, next) => {
 		passport.authenticate('local-signin', (err, user, info) => {
 			if (err) return next(err);
+			if (info && info.code === 5) {
+				res.send(info);
+				return;
+			}
 			if (user) {
 				req.logIn(user, (err) => {
 					if (err) return next(err);
@@ -58,13 +67,15 @@ module.exports = (app, passport) => {
 							res.status(200).json({
 								code: 4,
 								message: 'redirect',
-								redirect: req.query.redirect
+								redirect: req.query.redirect,
+								fName: user.firstName
 							});
 						} else {
 							res.status(200).json({
 								code: 4,
 								message: 'redirect',
-								redirect: '/projects'
+								redirect: '/projects',
+								fName: user.firstName
 							});
 						}
 					});
@@ -162,15 +173,17 @@ module.exports = (app, passport) => {
 
 		//Check if the user enters the same old pass, otherwise don't contintue
 		if (!isSamePassword(user.password, oldPass)) {
-			res.status(400).json({
-				code: 1,
-				message: 'Old Password is incorrect'
+			res.status(200).json({
+				code: 5,
+				message: 'Old Password is incorrect',
+				error: true
 			});
 		} else if (isSamePassword(user.password, newPas)) {
 			//check if it is not the same pass as the old one, bcrypt is a better check then old pass to new pass check
-			res.status(400).json({
-				code: 1,
-				message: 'Password can not be an old password'
+			res.status(200).json({
+				code: 5,
+				message: 'Password can not be an old password',
+				error: true
 			});
 		} else {
 			//if everything goes well change it
