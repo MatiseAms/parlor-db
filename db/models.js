@@ -54,15 +54,17 @@ const Project = Database.define('project', {
 			notEmpty: true
 		}
 	},
-	image: {
-		type: Sequelize.STRING,
-		get() {
-			const value = this.getDataValue('image');
-			return `${hostname}/${value}`;
-		}
-	},
 	version: {
 		type: Sequelize.NUMBER
+	},
+	gridStatus: {
+		type: Sequelize.BOOLEAN
+	},
+	colorStatus: {
+		type: Sequelize.BOOLEAN
+	},
+	typoStatus: {
+		type: Sequelize.BOOLEAN
 	}
 });
 

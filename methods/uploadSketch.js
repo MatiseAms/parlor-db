@@ -30,8 +30,6 @@ const uploadSketchFiles = async (req, res, next) => {
 	const projectHasUser = await project.hasUser(user);
 	//if there is a user continue
 	if (projectHasUser) {
-		//increment project (returns old project)
-
 		//create folder structure
 		//dots on end have to be there cause mkdirp function only makes directorys and won't recognize if there is no end on the file
 		const version = project.version + 1;
@@ -74,7 +72,10 @@ const uploadSketchFiles = async (req, res, next) => {
 					res.locals.projectVersion = version;
 					//next function is unzipSketchFiles
 					await project.update({
-						version
+						version,
+						gridStatus: false,
+						colorStatus: false,
+						typoStatus: false
 					});
 					next();
 				} else {
@@ -115,11 +116,11 @@ const unzipSketchFiles = async (req, res) => {
 };
 
 /**
- * scallAllData - Function that calls all scan functions
+ * scanAllData - Function that calls all scan functions
  * @param {Int} req.params.id - Project ID
  * @return Express response
  */
-const scallAllData = async (req, res) => {
+const scanAllData = async (req, res) => {
 	//element is what scan should be perfmred
 	const element = req.params.element;
 	//
@@ -161,7 +162,7 @@ const scallAllData = async (req, res) => {
 	//
 	if (!fs.existsSync(projectFolder)) {
 		res.status(202).json({
-			code: 0,
+			code: 1,
 			message: 'Server is still processing the data, try again later'
 		});
 		return;
@@ -181,18 +182,26 @@ const scallAllData = async (req, res) => {
 				data = await scanAllColors(projectId, fileNames);
 				break;
 		}
-		res.status(200).json({
-			code: 0,
-			message: 'Scan succesful',
-			data
-		});
+		if (data.code !== 3) {
+			res.status(200).json({
+				code: 0,
+				message: 'Scan succesful',
+				data
+			});
+		} else {
+			res.status(202).json({
+				code: 1,
+				message: 'Server is still processing the data, try again later'
+			});
+			return;
+		}
 	});
 };
 
 module.exports = {
 	uploadSketchFiles,
 	unzipSketchFiles,
-	scallAllData
+	scanAllData
 };
 
 /**
@@ -206,84 +215,90 @@ module.exports = {
  * @return Saves everything
  */
 const scanGrid = async (projectId, fileNames) => {
-	const pages = fileNames
-		.map((file) => {
-			const rawdata = fs.readFileSync(`${file}/meta.json`);
-			const documentData = JSON.parse(rawdata);
-			const pageName = Object.keys(documentData.pagesAndArtboards).find((artboard) => {
-				if (documentData.pagesAndArtboards[artboard].name.toLowerCase().indexOf('page') !== -1) {
-					const restArtboards = documentData.pagesAndArtboards[artboard].artboards;
-					const secondPage = Object.keys(restArtboards).find((restArtboard) => {
-						if (
-							restArtboards[restArtboard].name.indexOf('1440*900') !== -1 ||
-							restArtboards[restArtboard].name.indexOf('1920*1080') !== -1
-						) {
+	try {
+		const pages = fileNames
+			.map((file) => {
+				const rawdata = fs.readFileSync(`${file}/meta.json`);
+				const documentData = JSON.parse(rawdata);
+				const pageName = Object.keys(documentData.pagesAndArtboards).find((artboard) => {
+					if (documentData.pagesAndArtboards[artboard].name.toLowerCase().indexOf('page') !== -1) {
+						const restArtboards = documentData.pagesAndArtboards[artboard].artboards;
+						const secondPage = Object.keys(restArtboards).find((restArtboard) => {
+							if (
+								restArtboards[restArtboard].name.indexOf('1440*900') !== -1 ||
+								restArtboards[restArtboard].name.indexOf('1920*1080') !== -1
+							) {
+								return true;
+							}
+						});
+						if (secondPage) {
 							return true;
 						}
-					});
-					if (secondPage) {
+					}
+					if (
+						documentData.pagesAndArtboards[artboard].name.indexOf('1440*900') !== -1 ||
+						documentData.pagesAndArtboards[artboard].name.indexOf('1920*1080') !== -1
+					) {
 						return true;
 					}
-				}
-				if (
-					documentData.pagesAndArtboards[artboard].name.indexOf('1440*900') !== -1 ||
-					documentData.pagesAndArtboards[artboard].name.indexOf('1920*1080') !== -1
-				) {
-					return true;
-				}
-			});
-			return {
-				pageName,
-				file
-			};
-		})
-		.filter((page) => page.pageName);
-	const allColumns = [
-		...new Set(
-			pages.map((page) => {
-				const rawdata = fs.readFileSync(`${page.file}/pages/${page.pageName}.json`);
-				const documentData = JSON.parse(rawdata);
-				const columns = [
-					...new Set(
-						documentData.layers.map((layer) =>
-							layer.layout && layer.layout.numberOfColumns ? layer.layout.numberOfColumns : false
-						)
-					)
-				].filter((column) => column);
-				if (columns.length === 1) {
-					return columns[0];
-				} else {
-					//write a fallback for later, now just take the 24 or else the first item
-					return columns.includes(24) ? 24 : columns[0];
-				}
+				});
+				return {
+					pageName,
+					file
+				};
 			})
-		)
-	];
-	let columnAmount = 24;
-	if (allColumns.length === 1) {
-		columnAmount = allColumns[0];
-	} else {
-		//write a fallback for later, now just take the 24 or else the first item
-		columnAmount = allColumns.includes(24) ? 24 : allColumns[0];
-	}
-	const olderGrid = await Grid.findOne({
-		where: {
-			projectId
+			.filter((page) => page.pageName);
+		const allColumns = [
+			...new Set(
+				pages.map((page) => {
+					const rawdata = fs.readFileSync(`${page.file}/pages/${page.pageName}.json`);
+					const documentData = JSON.parse(rawdata);
+					const columns = [
+						...new Set(
+							documentData.layers.map((layer) =>
+								layer.layout && layer.layout.numberOfColumns ? layer.layout.numberOfColumns : false
+							)
+						)
+					].filter((column) => column);
+					if (columns.length === 1) {
+						return columns[0];
+					} else {
+						//write a fallback for later, now just take the 24 or else the first item
+						return columns.includes(24) ? 24 : columns[0];
+					}
+				})
+			)
+		];
+		let columnAmount = 24;
+		if (allColumns.length === 1) {
+			columnAmount = allColumns[0];
+		} else {
+			//write a fallback for later, now just take the 24 or else the first item
+			columnAmount = allColumns.includes(24) ? 24 : allColumns[0];
 		}
-	});
-	if (olderGrid) {
-		await olderGrid.update({
-			value: columnAmount,
-			checked: false
+		const olderGrid = await Grid.findOne({
+			where: {
+				projectId
+			}
 		});
-	} else {
-		await Grid.create({
-			value: columnAmount,
-			projectId,
-			checked: false
-		});
+		if (olderGrid) {
+			await olderGrid.update({
+				value: columnAmount,
+				checked: false
+			});
+		} else {
+			await Grid.create({
+				value: columnAmount,
+				projectId,
+				checked: false
+			});
+		}
+		return columnAmount || 0;
+	} catch (e) {
+		return {
+			code: 3
+		};
 	}
-	return columnAmount || 0;
 };
 
 /**
@@ -292,25 +307,31 @@ const scanGrid = async (projectId, fileNames) => {
  * @param {Obj} fileNames - All file names
  * @return Saves everything
  */
-const scanAllTypo = (projectId, fileNames) => {
+const scanAllTypo = async (projectId, fileNames) => {
 	let allTypo = {};
-	fileNames.forEach((file) => {
-		const rawdata = fs.readFileSync(`${file}/document.json`);
-		const documentData = JSON.parse(rawdata);
-		// foreignTextStyles .localSharedStyle
-		documentData.layerTextStyles.objects.forEach((typo) => {
-			const newTypo = divideTypo(typo);
-			if (newTypo) {
-				if (allTypo[newTypo.element]) {
-					allTypo[newTypo.element].allValues.push(newTypo);
-				} else {
-					allTypo[newTypo.element] = {
-						allValues: [newTypo]
-					};
+	try {
+		fileNames.forEach((file) => {
+			const rawdata = fs.readFileSync(`${file}/document.json`);
+			const documentData = JSON.parse(rawdata);
+			// foreignTextStyles .localSharedStyle
+			documentData.layerTextStyles.objects.forEach((typo) => {
+				const newTypo = divideTypo(typo);
+				if (newTypo) {
+					if (allTypo[newTypo.element]) {
+						allTypo[newTypo.element].allValues.push(newTypo);
+					} else {
+						allTypo[newTypo.element] = {
+							allValues: [newTypo]
+						};
+					}
 				}
-			}
+			});
 		});
-	});
+	} catch (e) {
+		return {
+			code: 3
+		};
+	}
 
 	const fonts = Object.keys(allTypo).map((key) => {
 		const allValues = allTypo[key].allValues;
@@ -362,8 +383,14 @@ const scanAllTypo = (projectId, fileNames) => {
 			kerning: Math.round(allKerning[0] * 100) / 100 || 0
 		};
 	});
+	const allfontFamilies = [...new Set(fonts.map((font) => font.fontFamily))];
+	const missingFonts = allfontFamilies.filter((font) => {
+		if (!fs.existsSync(`./uploads/fonts/${font.toLowerCase()}`)) {
+			return font;
+		}
+	});
 
-	return Promise.all(
+	const allFonts = await Promise.all(
 		fonts.map(async (font) => {
 			const fontExist = await Typography.findOne({
 				where: {
@@ -414,6 +441,10 @@ const scanAllTypo = (projectId, fileNames) => {
 			};
 		})
 	);
+	return {
+		missingFonts,
+		allFonts
+	};
 };
 
 /**
@@ -423,61 +454,67 @@ const scanAllTypo = (projectId, fileNames) => {
  * @return Saves everything
  */
 const scanAllColors = (projectId, fileNames) => {
-	let colorsSet = [];
-	let colorNames = [];
-	let values = [];
-	fileNames.forEach((file) => {
-		const rawdata = fs.readFileSync(`${file}/document.json`);
-		const documentData = JSON.parse(rawdata);
+	try {
+		let colorsSet = [];
+		let colorNames = [];
+		let values = [];
+		fileNames.forEach((file) => {
+			const rawdata = fs.readFileSync(`${file}/document.json`);
+			const documentData = JSON.parse(rawdata);
 
-		if (documentData) {
-			const rawColors = documentData.assets.colorAssets;
-			rawColors.forEach((colorObject) => {
-				const color = colorObject.color;
-				const colorInstance = new ColorFormatter({
-					r: Math.round(color.red * 255),
-					g: Math.round(color.green * 255),
-					b: Math.round(color.blue * 255),
-					a: color.alpha
-				});
-				if (!values.includes(colorInstance.hexToCss)) {
-					values.push(colorInstance.hexToCss);
-					let double = false;
-					const indexOf = colorNames.indexOf(colorInstance.colorName);
-					if (indexOf > -1) {
-						double = true;
-						colorsSet[indexOf].doubleName = true;
-					}
-
-					colorNames.push(colorInstance.colorName);
-
-					colorsSet.push({
-						name: colorObject.name || colorInstance.colorName,
-						ogName: colorInstance.colorName,
-						value: colorInstance.hexToCss,
-						projectId,
-						checked: false,
-						doubleName: double
+			if (documentData) {
+				const rawColors = documentData.assets.colorAssets;
+				rawColors.forEach((colorObject) => {
+					const color = colorObject.color;
+					const colorInstance = new ColorFormatter({
+						r: Math.round(color.red * 255),
+						g: Math.round(color.green * 255),
+						b: Math.round(color.blue * 255),
+						a: color.alpha
 					});
-				}
-			});
-		}
-	});
-	return Promise.all(
-		colorsSet.map(async (color) => {
-			const colorExist = await Color.findOne({
-				raw: true,
-				where: {
-					projectId,
-					ogName: color.ogName
-				}
-			});
-			if (!colorExist) {
-				await Color.create(color);
+					if (!values.includes(colorInstance.hexToCss)) {
+						values.push(colorInstance.hexToCss);
+						let double = false;
+						const indexOf = colorNames.indexOf(colorInstance.colorName);
+						if (indexOf > -1) {
+							double = true;
+							colorsSet[indexOf].doubleName = true;
+						}
+
+						colorNames.push(colorInstance.colorName);
+
+						colorsSet.push({
+							name: colorObject.name || colorInstance.colorName,
+							ogName: colorInstance.colorName,
+							value: colorInstance.hexToCss,
+							projectId,
+							checked: false,
+							doubleName: double
+						});
+					}
+				});
 			}
-			return color;
-		})
-	);
+		});
+		return Promise.all(
+			colorsSet.map(async (color) => {
+				const colorExist = await Color.findOne({
+					raw: true,
+					where: {
+						projectId,
+						ogName: color.ogName
+					}
+				});
+				if (!colorExist) {
+					await Color.create(color);
+				}
+				return color;
+			})
+		);
+	} catch (e) {
+		return {
+			code: 3
+		};
+	}
 };
 
 /**

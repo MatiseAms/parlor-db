@@ -32,7 +32,7 @@ const { checkOrCreateFolder } = require('./methods');
 				cookie: {
 					path: '/',
 					domain: clientUrl.hostname,
-					maxAge: 1000 * 60 * 24 * 7 // 7 days
+					maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
 				},
 				store: db.myStore,
 				resave: true,
