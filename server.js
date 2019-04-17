@@ -13,11 +13,11 @@ const { checkOrCreateFolder } = require('./methods');
 // initalize sequelize with session store
 (async () => {
 	await db.loadDB();
-
+	const clientUrl = new URL(client);
 	//create uploads folder if it wasn't there
 	await checkOrCreateFolder('./uploads/profile/.');
 	await checkOrCreateFolder('./uploads/projects/.');
-
+	console.log(clientUrl.hostname);
 	app
 		.use(
 			cors({
@@ -31,7 +31,9 @@ const { checkOrCreateFolder } = require('./methods');
 			session({
 				secret: 'iloveparlorandparlorlovesme',
 				cookie: {
-					domain: cookieSetting
+					path: '/',
+					domain: clientUrl.hostname,
+					maxAge: 1000 * 60 * 24 * 7 // 7 days
 				},
 				store: db.myStore,
 				resave: true,
