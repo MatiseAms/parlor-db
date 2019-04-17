@@ -199,8 +199,12 @@ module.exports = (app, passport) => {
 					}
 				}
 			);
-			const restData = getUserInfo(user);
-			res.send(restData);
+			//we alraedy have user data and we don't want to make another call but we do want to send the user back
+			res.send({
+				code: '0',
+				message: 'Password update succesful',
+				userId: user.id
+			});
 		}
 	});
 };

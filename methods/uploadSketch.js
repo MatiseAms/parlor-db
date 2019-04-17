@@ -68,7 +68,6 @@ const uploadSketchFiles = async (req, res, next) => {
 					message: 'Something went wrong with your upload'
 				});
 			} else {
-				console.log(req.files);
 				if (req.files) {
 					//save project ID for unzipping
 					res.locals.projectID = projectID;
@@ -121,6 +120,17 @@ const unzipSketchFiles = async (req, res) => {
  * @return Express response
  */
 const scallAllData = async (req, res) => {
+	//element is what scan should be perfmred
+	const element = req.params.element;
+	//
+	const scanOptions = ['typo', 'grid', 'colors'];
+	if (!scanOptions.includes(element)) {
+		res.send({
+			code: 1,
+			message: 'Scan option not found'
+		});
+		return;
+	}
 	const projectId = req.params.id;
 	const project = await Project.findByPk(projectId);
 
@@ -156,17 +166,26 @@ const scallAllData = async (req, res) => {
 		});
 		return;
 	}
-
-	fs.readdir(projectFolder, (err, files) => {
+	fs.readdir(projectFolder, async (err, files) => {
 		//filenames are relative for security, bind them with project folder
 		const fileNames = files.map((file) => projectFolder + file);
-		scanAllColors(projectId, fileNames);
-		scanAllTypo(projectId, fileNames);
-		scanGrid(projectId, fileNames);
-
-		res.status(201).json({
+		let data;
+		switch (element) {
+			case 'typo':
+				data = await scanAllTypo(projectId, fileNames);
+				break;
+			case 'grid':
+				data = await scanGrid(projectId, fileNames);
+				break;
+			case 'colors':
+				data = await scanAllColors(projectId, fileNames);
+				break;
+		}
+		console.log(data);
+		res.status(200).json({
 			code: 0,
-			message: 'Scan succesful'
+			message: 'Scan succesful',
+			data
 		});
 	});
 };
@@ -193,6 +212,20 @@ const scanGrid = async (projectId, fileNames) => {
 			const rawdata = fs.readFileSync(`${file}/meta.json`);
 			const documentData = JSON.parse(rawdata);
 			const pageName = Object.keys(documentData.pagesAndArtboards).find((artboard) => {
+				if (documentData.pagesAndArtboards[artboard].name.toLowerCase().indexOf('page') !== -1) {
+					const restArtboards = documentData.pagesAndArtboards[artboard].artboards;
+					const secondPage = Object.keys(restArtboards).find((restArtboard) => {
+						if (
+							restArtboards[restArtboard].name.indexOf('1440*900') !== -1 ||
+							restArtboards[restArtboard].name.indexOf('1920*1080') !== -1
+						) {
+							return true;
+						}
+					});
+					if (secondPage) {
+						return true;
+					}
+				}
 				if (
 					documentData.pagesAndArtboards[artboard].name.indexOf('1440*900') !== -1 ||
 					documentData.pagesAndArtboards[artboard].name.indexOf('1920*1080') !== -1
@@ -211,7 +244,13 @@ const scanGrid = async (projectId, fileNames) => {
 			pages.map((page) => {
 				const rawdata = fs.readFileSync(`${page.file}/pages/${page.pageName}.json`);
 				const documentData = JSON.parse(rawdata);
-				const columns = [...new Set(documentData.layers.map((layer) => layer.layout.numberOfColumns))];
+				const columns = [
+					...new Set(
+						documentData.layers.map((layer) =>
+							layer.layout && layer.layout.numberOfColumns ? layer.layout.numberOfColumns : false
+						)
+					)
+				].filter((column) => column);
 				if (columns.length === 1) {
 					return columns[0];
 				} else {
@@ -245,6 +284,7 @@ const scanGrid = async (projectId, fileNames) => {
 			checked: false
 		});
 	}
+	return columnAmount || 0;
 };
 
 /**
@@ -324,15 +364,16 @@ const scanAllTypo = (projectId, fileNames) => {
 		};
 	});
 
-	fonts.forEach(async (font) => {
-		const fontExist = await Typography.findOne({
-			where: {
-				projectId,
-				key: font.key
-			}
-		});
-		if (!fontExist) {
-			try {
+	return Promise.all(
+		fonts.map(async (font) => {
+			const fontExist = await Typography.findOne({
+				where: {
+					projectId,
+					key: font.key
+				}
+			});
+			//create or update
+			if (!fontExist) {
 				await Typography.create({
 					key: font.key,
 					colors: font.colors,
@@ -346,11 +387,21 @@ const scanAllTypo = (projectId, fileNames) => {
 					checked: false,
 					projectId
 				});
-			} catch (e) {
-				console.log(e);
+			} else {
+				await fontExist.update({
+					key: font.key,
+					colors: font.colors,
+					minSize: font.minSize,
+					baseSize: font.baseSize,
+					lineheight: font.lineheight,
+					hasItalic: font.hasItalic,
+					weight: font.fontWeights,
+					kerning: font.kerning,
+					family: font.fontFamily,
+					checked: false
+				});
 			}
-		} else {
-			await fontExist.update({
+			return {
 				key: font.key,
 				colors: font.colors,
 				minSize: font.minSize,
@@ -361,9 +412,9 @@ const scanAllTypo = (projectId, fileNames) => {
 				kerning: font.kerning,
 				family: font.fontFamily,
 				checked: false
-			});
-		}
-	});
+			};
+		})
+	);
 };
 
 /**
@@ -376,45 +427,45 @@ const scanAllColors = (projectId, fileNames) => {
 	let colorsSet = [];
 	let colorNames = [];
 	let values = [];
-	try {
-		fileNames.forEach((file) => {
-			const rawdata = fs.readFileSync(`${file}/document.json`);
-			const documentData = JSON.parse(rawdata);
+	fileNames.forEach((file) => {
+		const rawdata = fs.readFileSync(`${file}/document.json`);
+		const documentData = JSON.parse(rawdata);
 
-			if (documentData) {
-				const rawColors = documentData.assets.colorAssets;
-				rawColors.forEach((colorObject) => {
-					const color = colorObject.color;
-					const colorInstance = new ColorFormatter({
-						r: Math.round(color.red * 255),
-						g: Math.round(color.green * 255),
-						b: Math.round(color.blue * 255),
-						a: color.alpha
-					});
-					if (!values.includes(colorInstance.hexToCss)) {
-						values.push(colorInstance.hexToCss);
-						let double = false;
-						const indexOf = colorNames.indexOf(colorInstance.colorName);
-						if (indexOf > -1) {
-							double = true;
-							colorsSet[indexOf].doubleName = true;
-						}
-
-						colorNames.push(colorInstance.colorName);
-
-						colorsSet.push({
-							name: colorObject.name || colorInstance.colorName,
-							ogName: colorInstance.colorName,
-							value: colorInstance.hexToCss,
-							projectId,
-							checked: false,
-							doubleName: double
-						});
-					}
+		if (documentData) {
+			const rawColors = documentData.assets.colorAssets;
+			rawColors.forEach((colorObject) => {
+				const color = colorObject.color;
+				const colorInstance = new ColorFormatter({
+					r: Math.round(color.red * 255),
+					g: Math.round(color.green * 255),
+					b: Math.round(color.blue * 255),
+					a: color.alpha
 				});
-			}
-		});
-		colorsSet.forEach(async (color) => {
+				if (!values.includes(colorInstance.hexToCss)) {
+					values.push(colorInstance.hexToCss);
+					let double = false;
+					const indexOf = colorNames.indexOf(colorInstance.colorName);
+					if (indexOf > -1) {
+						double = true;
+						colorsSet[indexOf].doubleName = true;
+					}
+
+					colorNames.push(colorInstance.colorName);
+
+					colorsSet.push({
+						name: colorObject.name || colorInstance.colorName,
+						ogName: colorInstance.colorName,
+						value: colorInstance.hexToCss,
+						projectId,
+						checked: false,
+						doubleName: double
+					});
+				}
+			});
+		}
+	});
+	return Promise.all(
+		colorsSet.map(async (color) => {
 			const colorExist = await Color.findOne({
 				raw: true,
 				where: {
@@ -425,11 +476,9 @@ const scanAllColors = (projectId, fileNames) => {
 			if (!colorExist) {
 				await Color.create(color);
 			}
-		});
-		return true;
-	} catch (e) {
-		return false;
-	}
+			return color;
+		})
+	);
 };
 
 /**
