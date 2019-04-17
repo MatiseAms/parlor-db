@@ -30,5 +30,5 @@ module.exports = (app) => {
 	 * @middleware uploadSketchFiles
 	 * @middleware unzipSketchFiles
 	 */
-	app.post('/project/:id/upload/scan', isLoggedIn, scallAllData);
+	app.get('/project/:id/upload/:element', isLoggedIn, scallAllData);
 };

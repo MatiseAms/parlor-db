@@ -1,4 +1,5 @@
 const { Database, Sequelize } = require('./database');
+const { hostname } = require('../config');
 
 const User = Database.define('user', {
 	username: {
@@ -38,7 +39,11 @@ const User = Database.define('user', {
 		}
 	},
 	image: {
-		type: Sequelize.STRING
+		type: Sequelize.STRING,
+		get() {
+			const value = this.getDataValue('image');
+			return `${hostname}/${value}`;
+		}
 	}
 });
 
@@ -50,7 +55,11 @@ const Project = Database.define('project', {
 		}
 	},
 	image: {
-		type: Sequelize.STRING
+		type: Sequelize.STRING,
+		get() {
+			const value = this.getDataValue('image');
+			return `${hostname}/${value}`;
+		}
 	},
 	version: {
 		type: Sequelize.NUMBER
