@@ -7,5 +7,6 @@ module.exports = {
 	hostname: process.env.HOST,
 	database: {
 		name: 'parlor'
-	}
+	},
+	client: process.env.CLIENT
 };

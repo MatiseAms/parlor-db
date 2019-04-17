@@ -181,7 +181,6 @@ const scallAllData = async (req, res) => {
 				data = await scanAllColors(projectId, fileNames);
 				break;
 		}
-		console.log(data);
 		res.status(200).json({
 			code: 0,
 			message: 'Scan succesful',
