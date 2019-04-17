@@ -4,6 +4,7 @@ const http = require('http').Server(app);
 const { db } = require('./db');
 const passport = require('passport');
 const { passportMiddleware } = require('./methods');
+const cors = require('cors');
 
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
@@ -18,6 +19,12 @@ const { checkOrCreateFolder } = require('./methods');
 	await checkOrCreateFolder('./uploads/projects/.');
 
 	app
+		.use(
+			cors({
+				origin: client,
+				credentials: true
+			})
+		)
 		.use(cookieParser())
 		.use(express.json())
 		.use(
@@ -32,14 +39,7 @@ const { checkOrCreateFolder } = require('./methods');
 		.use(passport.initialize())
 		.use(passport.session())
 		.use('/uploads', express.static(__dirname + '/uploads'))
-		.use('/uploads', express.static(__dirname + '/statics'))
-		.use((req, res, next) => {
-			res.header('Access-Control-Allow-Credentials', true);
-			res.header('Access-Control-Allow-Origin', client);
-			res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-			res.header('Access-Control-Allow-Headers', 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
-			next();
-		});
+		.use('/uploads', express.static(__dirname + '/statics'));
 
 	//sync sessions with db
 	db.myStore.sync();
