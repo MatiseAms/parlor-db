@@ -5,19 +5,18 @@ const { db } = require('./db');
 const passport = require('passport');
 const { passportMiddleware } = require('./methods');
 const cors = require('cors');
-
+const url = require('url');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
-const { port, client, cookieSetting } = require('./config');
+const { port, client } = require('./config');
 const { checkOrCreateFolder } = require('./methods');
 // initalize sequelize with session store
 (async () => {
 	await db.loadDB();
-	const clientUrl = new URL(client);
+	const clientUrl = url.parse(client);
 	//create uploads folder if it wasn't there
 	await checkOrCreateFolder('./uploads/profile/.');
 	await checkOrCreateFolder('./uploads/projects/.');
-	console.log(clientUrl.hostname);
 	app
 		.use(
 			cors({
