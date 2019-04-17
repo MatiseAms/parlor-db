@@ -7,9 +7,8 @@ const { passportMiddleware } = require('./methods');
 
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
-const { port } = require('./config');
+const { port, client } = require('./config');
 const { checkOrCreateFolder } = require('./methods');
-
 // initalize sequelize with session store
 (async () => {
 	await db.loadDB();
@@ -36,7 +35,7 @@ const { checkOrCreateFolder } = require('./methods');
 		.use('/uploads', express.static(__dirname + '/statics'))
 		.use((req, res, next) => {
 			res.header('Access-Control-Allow-Credentials', true);
-			res.header('Access-Control-Allow-Origin', req.headers.origin);
+			res.header('Access-Control-Allow-Origin', client);
 			res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
 			res.header('Access-Control-Allow-Headers', 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
 			next();
