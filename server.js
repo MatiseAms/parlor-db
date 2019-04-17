@@ -8,7 +8,7 @@ const cors = require('cors');
 
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
-const { port, client } = require('./config');
+const { port, client, cookieSetting } = require('./config');
 const { checkOrCreateFolder } = require('./methods');
 // initalize sequelize with session store
 (async () => {
@@ -30,6 +30,9 @@ const { checkOrCreateFolder } = require('./methods');
 		.use(
 			session({
 				secret: 'iloveparlorandparlorlovesme',
+				cookie: {
+					domain: cookieSetting
+				},
 				store: db.myStore,
 				resave: true,
 				proxy: true,
