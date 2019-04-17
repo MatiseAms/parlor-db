@@ -68,6 +68,7 @@ const uploadSketchFiles = async (req, res, next) => {
 					message: 'Something went wrong with your upload'
 				});
 			} else {
+				console.log(req.files);
 				if (req.files) {
 					//save project ID for unzipping
 					res.locals.projectID = projectID;

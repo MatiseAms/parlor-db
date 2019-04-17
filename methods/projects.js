@@ -206,7 +206,8 @@ const createNewProject = async (req, res) => {
 
 		res.status(201).json({
 			code: 0,
-			message: 'Project created'
+			message: 'Project created',
+			projectId: project.id
 		});
 	}
 };
