@@ -8,5 +8,6 @@ module.exports = {
 	database: {
 		name: 'parlor'
 	},
-	client: process.env.CLIENT
+	client: process.env.CLIENT,
+	cookieSetting: process.env.COOKIE
 };
