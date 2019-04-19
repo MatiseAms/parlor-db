@@ -96,6 +96,102 @@ const uploadSketchFiles = async (req, res, next) => {
 };
 
 /**
+ * uploadFonts
+ * @param {Int} req.params.id - Project ID
+ * @param {Int} req.user.id - User session ID
+ * @return Next() or Err
+ */
+const uploadFonts = async (req, res, next) => {
+	const projectID = req.params.id;
+	//we need a version to extract the files into
+	const project = await Project.findByPk(projectID);
+	const user = await User.findByPk(req.user.id);
+
+	if (!project) {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+		return;
+	}
+	const typos = await Typography.findAll({
+		raw: true,
+		attributes: ['family'],
+		where: {
+			projectId: projectID
+		}
+	});
+	const typoSet = [...new Set(typos.map((typo) => typo.family))];
+
+	const typoUpload = typoSet.map((typo) => ({
+		name: typo
+	}));
+
+	//check if user belongs to project
+	const projectHasUser = await project.hasUser(user);
+	//if there is a user continue
+	if (projectHasUser) {
+		//create folder structure
+		console.log(req);
+		//dots on end have to be there cause mkdirp function only makes directorys and won't recognize if there is no end on the file
+
+		//save sketch to destination
+		const storage = multer.diskStorage({
+			async destination(req, file, cb) {
+				const localPath = `./uploads/projects/${projectID}/fonts/${file.fieldname}/.`;
+				await checkOrCreateFolder(localPath);
+				cb(null, localPath);
+			},
+			filename(req, file, cb) {
+				const fileName = file.originalname.split('-')[1];
+				cb(null, `${file.fieldname}-${fileName}`);
+			}
+		});
+		//create upload function
+		const upload = multer({
+			storage,
+			fileFilter(req, file, callback) {
+				const ext = path.extname(file.originalname);
+				if (ext !== '.woff2') {
+					return callback(new Error('Only woff2 files are allowed'));
+				}
+				callback(null, true);
+			}
+		});
+
+		// Upload file
+		upload.fields(typoUpload)(req, res, async (err) => {
+			if (err) {
+				console.log(err);
+				res.status(403).json({
+					code: 1,
+					message: 'Something went wrong with your upload'
+				});
+			} else {
+				if (req.files) {
+					console.log(req.files);
+					res.status(201).json({
+						code: 0,
+						message: 'Upload was succesful'
+					});
+				} else {
+					res.status(500).json({
+						code: 3,
+						message: 'Something went wrong'
+					});
+					return;
+				}
+			}
+		});
+	} else {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+	}
+};
+
+/**
  * unzipSketchFiles
  * @param {Int} res.locals.projectID - Project ID
  * @param {Int} res.locals.projectVersion - User session ID
@@ -201,6 +297,7 @@ const scanAllData = async (req, res) => {
 module.exports = {
 	uploadSketchFiles,
 	unzipSketchFiles,
+	uploadFonts,
 	scanAllData
 };
 
@@ -385,7 +482,7 @@ const scanAllTypo = async (projectId, fileNames) => {
 	});
 	const allfontFamilies = [...new Set(fonts.map((font) => font.fontFamily))];
 	const missingFonts = allfontFamilies.filter((font) => {
-		if (!fs.existsSync(`./uploads/fonts/${font.toLowerCase()}`)) {
+		if (!fs.existsSync(`./uploads/projects/${projectId}/fonts/${font.toLowerCase()}`)) {
 			return font;
 		}
 	});
