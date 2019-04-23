@@ -335,7 +335,7 @@ const uploadFonts = async (req, res) => {
 		const storage = multer.diskStorage({
 			async destination(req, file, cb) {
 				//dots on end have to be there cause mkdirp function only makes directorys and won't recognize if there is no end on the file
-				const localPath = `./uploads/projects/${projectID}/fonts/${file.fieldname}/.`;
+				const localPath = `./uploads/projects/${projectID}/fonts/${file.fieldname.toLowerCase()}/.`;
 				await checkOrCreateFolder(localPath);
 				cb(null, localPath);
 			},
