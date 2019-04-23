@@ -1,5 +1,13 @@
 const { isLoggedIn, sketch } = require('../methods');
-const { uploadSketchFiles, unzipSketchFiles, scanAllData, uploadFonts } = sketch;
+const {
+	uploadSketchFiles,
+	unzipSketchFiles,
+	scanAllData,
+	uploadFonts,
+	confirmTypo,
+	confirmColors,
+	confirmGrid
+} = sketch;
 
 module.exports = (app) => {
 	/**
@@ -35,4 +43,10 @@ module.exports = (app) => {
 	app.get('/project/:id/upload/:element', isLoggedIn, scanAllData);
 
 	app.post('/project/:id/upload/fonts', isLoggedIn, uploadFonts);
+
+	app.post('/project/:id/upload/typo', isLoggedIn, confirmTypo);
+
+	app.post('/project/:id/upload/colors', isLoggedIn, confirmColors);
+
+	app.post('/project/:id/upload/grid', isLoggedIn, confirmGrid);
 };

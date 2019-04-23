@@ -6,7 +6,6 @@ const { Project, User, Color, Typography, Grid } = models;
 const ntc = require('ntc');
 const StreamZip = require('node-stream-zip');
 const fs = require('fs');
-
 /**
  * uploadSketchFiles
  * @param {Int} req.params.id - Project ID
@@ -96,12 +95,211 @@ const uploadSketchFiles = async (req, res, next) => {
 };
 
 /**
+ * confirmGrid
+ * @param {Int} req.params.id - Project ID
+ * @param {Int} req.user.id - User session ID
+ * @return Next() or Err
+ */
+const confirmGrid = async (req, res) => {
+	const projectID = req.params.id;
+	//we need a version to extract the files into
+	const project = await Project.findByPk(projectID);
+	const user = await User.findByPk(req.user.id);
+
+	if (!project) {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+		return;
+	}
+	//check if user belongs to project
+	const projectHasUser = await project.hasUser(user);
+	//if there is a user continue
+	if (projectHasUser) {
+		// Upload file
+		const grid = req.body.grid;
+
+		await Grid.update(
+			{
+				value: grid,
+				checked: true
+			},
+			{
+				where: {
+					projectId: projectID
+				}
+			}
+		);
+		await project.update({
+			gridStatus: true
+		});
+		res.send({
+			code: 0,
+			message: 'succes'
+		});
+	} else {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+	}
+};
+
+/**
+ * confirmColors
+ * @param {Int} req.params.id - Project ID
+ * @param {Int} req.user.id - User session ID
+ * @return Next() or Err
+ */
+const confirmColors = async (req, res) => {
+	const projectID = req.params.id;
+	//we need a version to extract the files into
+	const project = await Project.findByPk(projectID);
+	const user = await User.findByPk(req.user.id);
+
+	if (!project) {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+		return;
+	}
+	//check if user belongs to project
+	const projectHasUser = await project.hasUser(user);
+	//if there is a user continue
+	if (projectHasUser) {
+		// Upload file
+		const colors = req.body.colors;
+
+		await Promise.all(
+			colors.map(async (color) => {
+				const colorExists = await Color.findByPk(color.id);
+				if (colorExists) {
+					return await colorExists.update({
+						name: color.name,
+						value: color.value,
+						checked: true
+					});
+				} else {
+					//create it
+					return await Color.create({
+						name: color.name,
+						value: color.value,
+						ogName: color.name,
+						checked: true
+					});
+				}
+			})
+		);
+		//delete remaingin typo
+		await Color.destroy({
+			where: {
+				projectId: projectID,
+				checked: false
+			}
+		});
+		await project.update({
+			colorStatus: true
+		});
+		res.send({
+			code: 0,
+			message: 'succes'
+		});
+	} else {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+	}
+};
+
+/**
+ * confirmTypo
+ * @param {Int} req.params.id - Project ID
+ * @param {Int} req.user.id - User session ID
+ * @return Next() or Err
+ */
+const confirmTypo = async (req, res) => {
+	const projectID = req.params.id;
+	//we need a version to extract the files into
+	const project = await Project.findByPk(projectID);
+	const user = await User.findByPk(req.user.id);
+
+	if (!project) {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+		return;
+	}
+	//check if user belongs to project
+	const projectHasUser = await project.hasUser(user);
+	//if there is a user continue
+	if (projectHasUser) {
+		// Upload file
+		const typos = req.body.typographies;
+
+		await Promise.all(
+			typos.map(async (typo) => {
+				const typoExists = await Typography.findByPk(typo.id);
+				if (typoExists) {
+					return await typoExists.update({
+						minSize: typo.minSize,
+						baseSize: typo.baseSize,
+						kerning: typo.kerning,
+						lineheight: typo.lineheight,
+						checked: true,
+						colors: typo.colors,
+						hasItalic: typo.hasItalic,
+						family: typo.family
+					});
+				} else {
+					//create it
+					return await Typography.create({
+						minSize: typo.minSize,
+						baseSize: typo.baseSize,
+						kerning: typo.kerning,
+						lineheight: typo.lineheight,
+						checked: true,
+						colors: typo.colors,
+						projectId: projectID,
+						key: typo.key,
+						hasItalic: typo.hasItalic,
+						family: typo.family
+					});
+				}
+			})
+		);
+		//delete remaingin typo
+		await Typography.destroy({
+			where: {
+				projectId: projectID,
+				checked: false
+			}
+		});
+		await project.update({
+			typoStatus: true
+		});
+		res.send({
+			code: 0,
+			message: 'succes'
+		});
+	} else {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+	}
+};
+
+/**
  * uploadFonts
  * @param {Int} req.params.id - Project ID
  * @param {Int} req.user.id - User session ID
  * @return Next() or Err
  */
-const uploadFonts = async (req, res, next) => {
+const uploadFonts = async (req, res) => {
 	const projectID = req.params.id;
 	//we need a version to extract the files into
 	const project = await Project.findByPk(projectID);
@@ -132,12 +330,11 @@ const uploadFonts = async (req, res, next) => {
 	//if there is a user continue
 	if (projectHasUser) {
 		//create folder structure
-		console.log(req);
-		//dots on end have to be there cause mkdirp function only makes directorys and won't recognize if there is no end on the file
 
 		//save sketch to destination
 		const storage = multer.diskStorage({
 			async destination(req, file, cb) {
+				//dots on end have to be there cause mkdirp function only makes directorys and won't recognize if there is no end on the file
 				const localPath = `./uploads/projects/${projectID}/fonts/${file.fieldname}/.`;
 				await checkOrCreateFolder(localPath);
 				cb(null, localPath);
@@ -169,7 +366,6 @@ const uploadFonts = async (req, res, next) => {
 				});
 			} else {
 				if (req.files) {
-					console.log(req.files);
 					res.status(201).json({
 						code: 0,
 						message: 'Upload was succesful'
@@ -298,7 +494,10 @@ module.exports = {
 	uploadSketchFiles,
 	unzipSketchFiles,
 	uploadFonts,
-	scanAllData
+	scanAllData,
+	confirmTypo,
+	confirmColors,
+	confirmGrid
 };
 
 /**
@@ -497,7 +696,7 @@ const scanAllTypo = async (projectId, fileNames) => {
 			});
 			//create or update
 			if (!fontExist) {
-				await Typography.create({
+				return await Typography.create({
 					key: font.key,
 					colors: font.colors,
 					minSize: font.minSize,
@@ -511,7 +710,7 @@ const scanAllTypo = async (projectId, fileNames) => {
 					projectId
 				});
 			} else {
-				await fontExist.update({
+				return await fontExist.update({
 					key: font.key,
 					colors: font.colors,
 					minSize: font.minSize,
@@ -524,18 +723,6 @@ const scanAllTypo = async (projectId, fileNames) => {
 					checked: false
 				});
 			}
-			return {
-				key: font.key,
-				colors: font.colors,
-				minSize: font.minSize,
-				baseSize: font.baseSize,
-				lineheight: font.lineheight,
-				hasItalic: font.hasItalic,
-				weight: font.fontWeights,
-				kerning: font.kerning,
-				family: font.fontFamily,
-				checked: false
-			};
 		})
 	);
 	return {
@@ -550,7 +737,7 @@ const scanAllTypo = async (projectId, fileNames) => {
  * @param {Obj} fileNames - All file names
  * @return Saves everything
  */
-const scanAllColors = (projectId, fileNames) => {
+const scanAllColors = async (projectId, fileNames) => {
 	try {
 		let colorsSet = [];
 		let colorNames = [];
@@ -592,21 +779,26 @@ const scanAllColors = (projectId, fileNames) => {
 				});
 			}
 		});
-		return Promise.all(
+		const colors = await Promise.all(
 			colorsSet.map(async (color) => {
 				const colorExist = await Color.findOne({
-					raw: true,
 					where: {
 						projectId,
-						ogName: color.ogName
+						ogName: color.ogName,
+						value: color.value
 					}
 				});
 				if (!colorExist) {
-					await Color.create(color);
+					return await Color.create(color);
+				} else {
+					await colorExist.update({
+						checked: false
+					});
+					return colorExist;
 				}
-				return color;
 			})
 		);
+		return colors.sort((a, b) => a.id - b.id);
 	} catch (e) {
 		return {
 			code: 3
