@@ -6,7 +6,6 @@ const { Project, User, Color, Typography, Grid } = models;
 const ntc = require('ntc');
 const StreamZip = require('node-stream-zip');
 const fs = require('fs');
-
 /**
  * uploadSketchFiles
  * @param {Int} req.params.id - Project ID
@@ -30,8 +29,6 @@ const uploadSketchFiles = async (req, res, next) => {
 	const projectHasUser = await project.hasUser(user);
 	//if there is a user continue
 	if (projectHasUser) {
-		//increment project (returns old project)
-
 		//create folder structure
 		//dots on end have to be there cause mkdirp function only makes directorys and won't recognize if there is no end on the file
 		const version = project.version + 1;
@@ -74,9 +71,305 @@ const uploadSketchFiles = async (req, res, next) => {
 					res.locals.projectVersion = version;
 					//next function is unzipSketchFiles
 					await project.update({
-						version
+						version,
+						gridStatus: false,
+						colorStatus: false,
+						typoStatus: false
 					});
 					next();
+				} else {
+					res.status(500).json({
+						code: 3,
+						message: 'Something went wrong'
+					});
+					return;
+				}
+			}
+		});
+	} else {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+	}
+};
+
+/**
+ * confirmGrid
+ * @param {Int} req.params.id - Project ID
+ * @param {Int} req.user.id - User session ID
+ * @return Next() or Err
+ */
+const confirmGrid = async (req, res) => {
+	const projectID = req.params.id;
+	//we need a version to extract the files into
+	const project = await Project.findByPk(projectID);
+	const user = await User.findByPk(req.user.id);
+
+	if (!project) {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+		return;
+	}
+	//check if user belongs to project
+	const projectHasUser = await project.hasUser(user);
+	//if there is a user continue
+	if (projectHasUser) {
+		// Upload file
+		const grid = req.body.grid;
+
+		await Grid.update(
+			{
+				value: grid,
+				checked: true
+			},
+			{
+				where: {
+					projectId: projectID
+				}
+			}
+		);
+		await project.update({
+			gridStatus: true
+		});
+		res.send({
+			code: 0,
+			message: 'succes'
+		});
+	} else {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+	}
+};
+
+/**
+ * confirmColors
+ * @param {Int} req.params.id - Project ID
+ * @param {Int} req.user.id - User session ID
+ * @return Next() or Err
+ */
+const confirmColors = async (req, res) => {
+	const projectID = req.params.id;
+	//we need a version to extract the files into
+	const project = await Project.findByPk(projectID);
+	const user = await User.findByPk(req.user.id);
+
+	if (!project) {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+		return;
+	}
+	//check if user belongs to project
+	const projectHasUser = await project.hasUser(user);
+	//if there is a user continue
+	if (projectHasUser) {
+		// Upload file
+		const colors = req.body.colors;
+
+		await Promise.all(
+			colors.map(async (color) => {
+				const colorExists = await Color.findByPk(color.id);
+				if (colorExists) {
+					return await colorExists.update({
+						name: color.name,
+						value: color.value,
+						checked: true
+					});
+				} else {
+					//create it
+					return await Color.create({
+						name: color.name,
+						value: color.value,
+						ogName: color.name,
+						checked: true
+					});
+				}
+			})
+		);
+		//delete remaingin typo
+		await Color.destroy({
+			where: {
+				projectId: projectID,
+				checked: false
+			}
+		});
+		await project.update({
+			colorStatus: true
+		});
+		res.send({
+			code: 0,
+			message: 'succes'
+		});
+	} else {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+	}
+};
+
+/**
+ * confirmTypo
+ * @param {Int} req.params.id - Project ID
+ * @param {Int} req.user.id - User session ID
+ * @return Next() or Err
+ */
+const confirmTypo = async (req, res) => {
+	const projectID = req.params.id;
+	//we need a version to extract the files into
+	const project = await Project.findByPk(projectID);
+	const user = await User.findByPk(req.user.id);
+
+	if (!project) {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+		return;
+	}
+	//check if user belongs to project
+	const projectHasUser = await project.hasUser(user);
+	//if there is a user continue
+	if (projectHasUser) {
+		// Upload file
+		const typos = req.body.typographies;
+
+		await Promise.all(
+			typos.map(async (typo) => {
+				const typoExists = await Typography.findByPk(typo.id);
+				if (typoExists) {
+					return await typoExists.update({
+						minSize: typo.minSize,
+						baseSize: typo.baseSize,
+						kerning: typo.kerning,
+						lineheight: typo.lineheight,
+						checked: true,
+						colors: typo.colors,
+						hasItalic: typo.hasItalic,
+						family: typo.family
+					});
+				} else {
+					//create it
+					return await Typography.create({
+						minSize: typo.minSize,
+						baseSize: typo.baseSize,
+						kerning: typo.kerning,
+						lineheight: typo.lineheight,
+						checked: true,
+						colors: typo.colors,
+						projectId: projectID,
+						key: typo.key,
+						hasItalic: typo.hasItalic,
+						family: typo.family
+					});
+				}
+			})
+		);
+		//delete remaingin typo
+		await Typography.destroy({
+			where: {
+				projectId: projectID,
+				checked: false
+			}
+		});
+		await project.update({
+			typoStatus: true
+		});
+		res.send({
+			code: 0,
+			message: 'succes'
+		});
+	} else {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+	}
+};
+
+/**
+ * uploadFonts
+ * @param {Int} req.params.id - Project ID
+ * @param {Int} req.user.id - User session ID
+ * @return Next() or Err
+ */
+const uploadFonts = async (req, res) => {
+	const projectID = req.params.id;
+	//we need a version to extract the files into
+	const project = await Project.findByPk(projectID);
+	const user = await User.findByPk(req.user.id);
+
+	if (!project) {
+		res.status(404).json({
+			code: 3,
+			message: 'No project found with this ID'
+		});
+		return;
+	}
+	const typos = await Typography.findAll({
+		raw: true,
+		attributes: ['family'],
+		where: {
+			projectId: projectID
+		}
+	});
+	const typoSet = [...new Set(typos.map((typo) => typo.family))];
+
+	const typoUpload = typoSet.map((typo) => ({
+		name: typo
+	}));
+
+	//check if user belongs to project
+	const projectHasUser = await project.hasUser(user);
+	//if there is a user continue
+	if (projectHasUser) {
+		//create folder structure
+
+		//save sketch to destination
+		const storage = multer.diskStorage({
+			async destination(req, file, cb) {
+				//dots on end have to be there cause mkdirp function only makes directorys and won't recognize if there is no end on the file
+				const localPath = `./uploads/projects/${projectID}/fonts/${file.fieldname}/.`;
+				await checkOrCreateFolder(localPath);
+				cb(null, localPath);
+			},
+			filename(req, file, cb) {
+				const fileName = file.originalname.split('-')[1];
+				cb(null, `${file.fieldname}-${fileName}`);
+			}
+		});
+		//create upload function
+		const upload = multer({
+			storage,
+			fileFilter(req, file, callback) {
+				const ext = path.extname(file.originalname);
+				if (ext !== '.woff2') {
+					return callback(new Error('Only woff2 files are allowed'));
+				}
+				callback(null, true);
+			}
+		});
+
+		// Upload file
+		upload.fields(typoUpload)(req, res, async (err) => {
+			if (err) {
+				console.log(err);
+				res.status(403).json({
+					code: 1,
+					message: 'Something went wrong with your upload'
+				});
+			} else {
+				if (req.files) {
+					res.status(201).json({
+						code: 0,
+						message: 'Upload was succesful'
+					});
 				} else {
 					res.status(500).json({
 						code: 3,
@@ -115,11 +408,11 @@ const unzipSketchFiles = async (req, res) => {
 };
 
 /**
- * scallAllData - Function that calls all scan functions
+ * scanAllData - Function that calls all scan functions
  * @param {Int} req.params.id - Project ID
  * @return Express response
  */
-const scallAllData = async (req, res) => {
+const scanAllData = async (req, res) => {
 	//element is what scan should be perfmred
 	const element = req.params.element;
 	//
@@ -161,7 +454,7 @@ const scallAllData = async (req, res) => {
 	//
 	if (!fs.existsSync(projectFolder)) {
 		res.status(202).json({
-			code: 0,
+			code: 1,
 			message: 'Server is still processing the data, try again later'
 		});
 		return;
@@ -181,18 +474,30 @@ const scallAllData = async (req, res) => {
 				data = await scanAllColors(projectId, fileNames);
 				break;
 		}
-		res.status(200).json({
-			code: 0,
-			message: 'Scan succesful',
-			data
-		});
+		if (data.code !== 3) {
+			res.status(200).json({
+				code: 0,
+				message: 'Scan succesful',
+				data
+			});
+		} else {
+			res.status(202).json({
+				code: 1,
+				message: 'Server is still processing the data, try again later'
+			});
+			return;
+		}
 	});
 };
 
 module.exports = {
 	uploadSketchFiles,
 	unzipSketchFiles,
-	scallAllData
+	uploadFonts,
+	scanAllData,
+	confirmTypo,
+	confirmColors,
+	confirmGrid
 };
 
 /**
@@ -206,84 +511,90 @@ module.exports = {
  * @return Saves everything
  */
 const scanGrid = async (projectId, fileNames) => {
-	const pages = fileNames
-		.map((file) => {
-			const rawdata = fs.readFileSync(`${file}/meta.json`);
-			const documentData = JSON.parse(rawdata);
-			const pageName = Object.keys(documentData.pagesAndArtboards).find((artboard) => {
-				if (documentData.pagesAndArtboards[artboard].name.toLowerCase().indexOf('page') !== -1) {
-					const restArtboards = documentData.pagesAndArtboards[artboard].artboards;
-					const secondPage = Object.keys(restArtboards).find((restArtboard) => {
-						if (
-							restArtboards[restArtboard].name.indexOf('1440*900') !== -1 ||
-							restArtboards[restArtboard].name.indexOf('1920*1080') !== -1
-						) {
+	try {
+		const pages = fileNames
+			.map((file) => {
+				const rawdata = fs.readFileSync(`${file}/meta.json`);
+				const documentData = JSON.parse(rawdata);
+				const pageName = Object.keys(documentData.pagesAndArtboards).find((artboard) => {
+					if (documentData.pagesAndArtboards[artboard].name.toLowerCase().indexOf('page') !== -1) {
+						const restArtboards = documentData.pagesAndArtboards[artboard].artboards;
+						const secondPage = Object.keys(restArtboards).find((restArtboard) => {
+							if (
+								restArtboards[restArtboard].name.indexOf('1440*900') !== -1 ||
+								restArtboards[restArtboard].name.indexOf('1920*1080') !== -1
+							) {
+								return true;
+							}
+						});
+						if (secondPage) {
 							return true;
 						}
-					});
-					if (secondPage) {
+					}
+					if (
+						documentData.pagesAndArtboards[artboard].name.indexOf('1440*900') !== -1 ||
+						documentData.pagesAndArtboards[artboard].name.indexOf('1920*1080') !== -1
+					) {
 						return true;
 					}
-				}
-				if (
-					documentData.pagesAndArtboards[artboard].name.indexOf('1440*900') !== -1 ||
-					documentData.pagesAndArtboards[artboard].name.indexOf('1920*1080') !== -1
-				) {
-					return true;
-				}
-			});
-			return {
-				pageName,
-				file
-			};
-		})
-		.filter((page) => page.pageName);
-	const allColumns = [
-		...new Set(
-			pages.map((page) => {
-				const rawdata = fs.readFileSync(`${page.file}/pages/${page.pageName}.json`);
-				const documentData = JSON.parse(rawdata);
-				const columns = [
-					...new Set(
-						documentData.layers.map((layer) =>
-							layer.layout && layer.layout.numberOfColumns ? layer.layout.numberOfColumns : false
-						)
-					)
-				].filter((column) => column);
-				if (columns.length === 1) {
-					return columns[0];
-				} else {
-					//write a fallback for later, now just take the 24 or else the first item
-					return columns.includes(24) ? 24 : columns[0];
-				}
+				});
+				return {
+					pageName,
+					file
+				};
 			})
-		)
-	];
-	let columnAmount = 24;
-	if (allColumns.length === 1) {
-		columnAmount = allColumns[0];
-	} else {
-		//write a fallback for later, now just take the 24 or else the first item
-		columnAmount = allColumns.includes(24) ? 24 : allColumns[0];
-	}
-	const olderGrid = await Grid.findOne({
-		where: {
-			projectId
+			.filter((page) => page.pageName);
+		const allColumns = [
+			...new Set(
+				pages.map((page) => {
+					const rawdata = fs.readFileSync(`${page.file}/pages/${page.pageName}.json`);
+					const documentData = JSON.parse(rawdata);
+					const columns = [
+						...new Set(
+							documentData.layers.map((layer) =>
+								layer.layout && layer.layout.numberOfColumns ? layer.layout.numberOfColumns : false
+							)
+						)
+					].filter((column) => column);
+					if (columns.length === 1) {
+						return columns[0];
+					} else {
+						//write a fallback for later, now just take the 24 or else the first item
+						return columns.includes(24) ? 24 : columns[0];
+					}
+				})
+			)
+		];
+		let columnAmount = 24;
+		if (allColumns.length === 1) {
+			columnAmount = allColumns[0];
+		} else {
+			//write a fallback for later, now just take the 24 or else the first item
+			columnAmount = allColumns.includes(24) ? 24 : allColumns[0];
 		}
-	});
-	if (olderGrid) {
-		await olderGrid.update({
-			value: columnAmount,
-			checked: false
+		const olderGrid = await Grid.findOne({
+			where: {
+				projectId
+			}
 		});
-	} else {
-		await Grid.create({
-			value: columnAmount,
-			projectId,
-			checked: false
-		});
+		if (olderGrid) {
+			await olderGrid.update({
+				value: columnAmount,
+				checked: false
+			});
+		} else {
+			await Grid.create({
+				value: columnAmount,
+				projectId,
+				checked: false
+			});
+		}
+		return columnAmount || 0;
+	} catch (e) {
+		return {
+			code: 3
+		};
 	}
-	return columnAmount || 0;
 };
 
 /**
@@ -292,25 +603,31 @@ const scanGrid = async (projectId, fileNames) => {
  * @param {Obj} fileNames - All file names
  * @return Saves everything
  */
-const scanAllTypo = (projectId, fileNames) => {
+const scanAllTypo = async (projectId, fileNames) => {
 	let allTypo = {};
-	fileNames.forEach((file) => {
-		const rawdata = fs.readFileSync(`${file}/document.json`);
-		const documentData = JSON.parse(rawdata);
-		// foreignTextStyles .localSharedStyle
-		documentData.layerTextStyles.objects.forEach((typo) => {
-			const newTypo = divideTypo(typo);
-			if (newTypo) {
-				if (allTypo[newTypo.element]) {
-					allTypo[newTypo.element].allValues.push(newTypo);
-				} else {
-					allTypo[newTypo.element] = {
-						allValues: [newTypo]
-					};
+	try {
+		fileNames.forEach((file) => {
+			const rawdata = fs.readFileSync(`${file}/document.json`);
+			const documentData = JSON.parse(rawdata);
+			// foreignTextStyles .localSharedStyle
+			documentData.layerTextStyles.objects.forEach((typo) => {
+				const newTypo = divideTypo(typo);
+				if (newTypo) {
+					if (allTypo[newTypo.element]) {
+						allTypo[newTypo.element].allValues.push(newTypo);
+					} else {
+						allTypo[newTypo.element] = {
+							allValues: [newTypo]
+						};
+					}
 				}
-			}
+			});
 		});
-	});
+	} catch (e) {
+		return {
+			code: 3
+		};
+	}
 
 	const fonts = Object.keys(allTypo).map((key) => {
 		const allValues = allTypo[key].allValues;
@@ -362,8 +679,14 @@ const scanAllTypo = (projectId, fileNames) => {
 			kerning: Math.round(allKerning[0] * 100) / 100 || 0
 		};
 	});
+	const allfontFamilies = [...new Set(fonts.map((font) => font.fontFamily))];
+	const missingFonts = allfontFamilies.filter((font) => {
+		if (!fs.existsSync(`./uploads/projects/${projectId}/fonts/${font.toLowerCase()}`)) {
+			return font;
+		}
+	});
 
-	return Promise.all(
+	const allFonts = await Promise.all(
 		fonts.map(async (font) => {
 			const fontExist = await Typography.findOne({
 				where: {
@@ -373,7 +696,7 @@ const scanAllTypo = (projectId, fileNames) => {
 			});
 			//create or update
 			if (!fontExist) {
-				await Typography.create({
+				return await Typography.create({
 					key: font.key,
 					colors: font.colors,
 					minSize: font.minSize,
@@ -387,7 +710,7 @@ const scanAllTypo = (projectId, fileNames) => {
 					projectId
 				});
 			} else {
-				await fontExist.update({
+				return await fontExist.update({
 					key: font.key,
 					colors: font.colors,
 					minSize: font.minSize,
@@ -400,20 +723,12 @@ const scanAllTypo = (projectId, fileNames) => {
 					checked: false
 				});
 			}
-			return {
-				key: font.key,
-				colors: font.colors,
-				minSize: font.minSize,
-				baseSize: font.baseSize,
-				lineheight: font.lineheight,
-				hasItalic: font.hasItalic,
-				weight: font.fontWeights,
-				kerning: font.kerning,
-				family: font.fontFamily,
-				checked: false
-			};
 		})
 	);
+	return {
+		missingFonts,
+		allFonts
+	};
 };
 
 /**
@@ -422,62 +737,73 @@ const scanAllTypo = (projectId, fileNames) => {
  * @param {Obj} fileNames - All file names
  * @return Saves everything
  */
-const scanAllColors = (projectId, fileNames) => {
-	let colorsSet = [];
-	let colorNames = [];
-	let values = [];
-	fileNames.forEach((file) => {
-		const rawdata = fs.readFileSync(`${file}/document.json`);
-		const documentData = JSON.parse(rawdata);
+const scanAllColors = async (projectId, fileNames) => {
+	try {
+		let colorsSet = [];
+		let colorNames = [];
+		let values = [];
+		fileNames.forEach((file) => {
+			const rawdata = fs.readFileSync(`${file}/document.json`);
+			const documentData = JSON.parse(rawdata);
 
-		if (documentData) {
-			const rawColors = documentData.assets.colorAssets;
-			rawColors.forEach((colorObject) => {
-				const color = colorObject.color;
-				const colorInstance = new ColorFormatter({
-					r: Math.round(color.red * 255),
-					g: Math.round(color.green * 255),
-					b: Math.round(color.blue * 255),
-					a: color.alpha
-				});
-				if (!values.includes(colorInstance.hexToCss)) {
-					values.push(colorInstance.hexToCss);
-					let double = false;
-					const indexOf = colorNames.indexOf(colorInstance.colorName);
-					if (indexOf > -1) {
-						double = true;
-						colorsSet[indexOf].doubleName = true;
-					}
-
-					colorNames.push(colorInstance.colorName);
-
-					colorsSet.push({
-						name: colorObject.name || colorInstance.colorName,
-						ogName: colorInstance.colorName,
-						value: colorInstance.hexToCss,
-						projectId,
-						checked: false,
-						doubleName: double
+			if (documentData) {
+				const rawColors = documentData.assets.colorAssets;
+				rawColors.forEach((colorObject) => {
+					const color = colorObject.color;
+					const colorInstance = new ColorFormatter({
+						r: Math.round(color.red * 255),
+						g: Math.round(color.green * 255),
+						b: Math.round(color.blue * 255),
+						a: color.alpha
 					});
-				}
-			});
-		}
-	});
-	return Promise.all(
-		colorsSet.map(async (color) => {
-			const colorExist = await Color.findOne({
-				raw: true,
-				where: {
-					projectId,
-					ogName: color.ogName
-				}
-			});
-			if (!colorExist) {
-				await Color.create(color);
+					if (!values.includes(colorInstance.hexToCss)) {
+						values.push(colorInstance.hexToCss);
+						let double = false;
+						const indexOf = colorNames.indexOf(colorInstance.colorName);
+						if (indexOf > -1) {
+							double = true;
+							colorsSet[indexOf].doubleName = true;
+						}
+
+						colorNames.push(colorInstance.colorName);
+
+						colorsSet.push({
+							name: colorObject.name || colorInstance.colorName,
+							ogName: colorInstance.colorName,
+							value: colorInstance.hexToCss,
+							projectId,
+							checked: false,
+							doubleName: double
+						});
+					}
+				});
 			}
-			return color;
-		})
-	);
+		});
+		const colors = await Promise.all(
+			colorsSet.map(async (color) => {
+				const colorExist = await Color.findOne({
+					where: {
+						projectId,
+						ogName: color.ogName,
+						value: color.value
+					}
+				});
+				if (!colorExist) {
+					return await Color.create(color);
+				} else {
+					await colorExist.update({
+						checked: false
+					});
+					return colorExist;
+				}
+			})
+		);
+		return colors.sort((a, b) => a.id - b.id);
+	} catch (e) {
+		return {
+			code: 3
+		};
+	}
 };
 
 /**

@@ -1,5 +1,13 @@
 const { isLoggedIn, sketch } = require('../methods');
-const { uploadSketchFiles, unzipSketchFiles, scallAllData } = sketch;
+const {
+	uploadSketchFiles,
+	unzipSketchFiles,
+	scanAllData,
+	uploadFonts,
+	confirmTypo,
+	confirmColors,
+	confirmGrid
+} = sketch;
 
 module.exports = (app) => {
 	/**
@@ -18,8 +26,10 @@ module.exports = (app) => {
 		(req, res) => {
 			//unzip the sketch files
 			unzipSketchFiles(req, res);
-			const fileNames = res.locals.fileNames;
-			res.send(fileNames);
+			res.send({
+				code: 0,
+				message: 'succes'
+			});
 		}
 	);
 
@@ -30,5 +40,13 @@ module.exports = (app) => {
 	 * @middleware uploadSketchFiles
 	 * @middleware unzipSketchFiles
 	 */
-	app.get('/project/:id/upload/:element', isLoggedIn, scallAllData);
+	app.get('/project/:id/upload/:element', isLoggedIn, scanAllData);
+
+	app.post('/project/:id/upload/fonts', isLoggedIn, uploadFonts);
+
+	app.post('/project/:id/upload/typo', isLoggedIn, confirmTypo);
+
+	app.post('/project/:id/upload/colors', isLoggedIn, confirmColors);
+
+	app.post('/project/:id/upload/grid', isLoggedIn, confirmGrid);
 };
