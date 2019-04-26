@@ -495,10 +495,12 @@ const scanAllData = async (req, res, option) => {
 				return true;
 			}
 		} else {
-			res.status(202).json({
-				code: 1,
-				message: 'Server is still processing the data, try again later'
-			});
+			if (resOrBool) {
+				res.status(202).json({
+					code: 1,
+					message: 'Server is still processing the data, try again later'
+				});
+			}
 			return;
 		}
 	});
@@ -761,35 +763,37 @@ const scanAllColors = async (projectId, fileNames) => {
 
 			if (documentData) {
 				const rawColors = documentData.assets.colorAssets;
-				rawColors.forEach((colorObject) => {
-					const color = colorObject.color;
-					const colorInstance = new ColorFormatter({
-						r: Math.round(color.red * 255),
-						g: Math.round(color.green * 255),
-						b: Math.round(color.blue * 255),
-						a: color.alpha
-					});
-					if (!values.includes(colorInstance.hexToCss)) {
-						values.push(colorInstance.hexToCss);
-						let double = false;
-						const indexOf = colorNames.indexOf(colorInstance.colorName);
-						if (indexOf > -1) {
-							double = true;
-							colorsSet[indexOf].doubleName = true;
-						}
-
-						colorNames.push(colorInstance.colorName);
-
-						colorsSet.push({
-							name: colorObject.name || colorInstance.colorName,
-							ogName: colorInstance.colorName,
-							value: colorInstance.hexToCss,
-							projectId,
-							checked: false,
-							doubleName: double
+				if (rawColors) {
+					rawColors.forEach((colorObject) => {
+						const color = colorObject.color;
+						const colorInstance = new ColorFormatter({
+							r: Math.round(color.red * 255),
+							g: Math.round(color.green * 255),
+							b: Math.round(color.blue * 255),
+							a: color.alpha
 						});
-					}
-				});
+						if (!values.includes(colorInstance.hexToCss)) {
+							values.push(colorInstance.hexToCss);
+							let double = false;
+							const indexOf = colorNames.indexOf(colorInstance.colorName);
+							if (indexOf > -1) {
+								double = true;
+								colorsSet[indexOf].doubleName = true;
+							}
+
+							colorNames.push(colorObject);
+
+							colorsSet.push({
+								name: colorObject.name || colorInstance.colorName,
+								ogName: colorInstance.colorName,
+								value: colorInstance.hexToCss,
+								projectId,
+								checked: false,
+								doubleName: double
+							});
+						}
+					});
+				}
 			}
 		});
 		const colors = await Promise.all(

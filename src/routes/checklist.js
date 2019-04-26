@@ -30,6 +30,7 @@ module.exports = (app) => {
 				message: 'succes'
 			});
 			await unzipSketchFiles(req, res);
+			await unzipSketchFiles(req, res);
 			req.params.element = 'typo';
 			await scanAllData(req, res, false);
 			req.params.element = 'colors';
