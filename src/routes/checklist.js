@@ -23,13 +23,19 @@ module.exports = (app) => {
 		isLoggedIn,
 		//upload the sketch file
 		uploadSketchFiles,
-		(req, res) => {
+		async (req, res) => {
 			//unzip the sketch files
-			unzipSketchFiles(req, res);
 			res.send({
 				code: 0,
 				message: 'succes'
 			});
+			await unzipSketchFiles(req, res);
+			req.params.element = 'typo';
+			await scanAllData(req, res, false);
+			req.params.element = 'colors';
+			await scanAllData(req, res, false);
+			req.params.element = 'grid';
+			await scanAllData(req, res, false);
 		}
 	);
 
