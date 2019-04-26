@@ -132,21 +132,21 @@ const addNewUserToProject = async (req, res) => {
 						email: req.body.email
 					},
 					{
-						username: req.body.email
+						username: req.body.email.toLowerCase()
 					}
 				]
 			}
 		});
 		if (!extraUser) {
 			res.status(404).json({
-				codde: 3,
-				message: 'User does not exist'
+				code: 3,
+				message: 'User not found'
 			});
 		} else {
 			const alreadyAdded = await project.hasUser(extraUser);
 			if (alreadyAdded) {
 				res.send({
-					codde: 1,
+					code: 1,
 					message: 'User is already in this projcet'
 				});
 			} else {
@@ -212,9 +212,52 @@ const createNewProject = async (req, res) => {
 	}
 };
 
+/**
+ * deleteProject
+ * @type Functiob
+ * @param {Int} userID - User session ID
+ * @param {Int} projectID - Project ID
+ * @return {Object || false}
+ */
+const deleteProject = async (userID, projectID) => {
+	//find the project and check if we have access with our userID
+	const project = await Project.findOne({
+		where: {
+			id: projectID
+		}
+	});
+
+	if (!project) {
+		return false;
+	}
+
+	const user = await User.findByPk(userID);
+	const projectHasUser = await project.hasUser(user);
+	//if there is a proejct iwth the right id and the right user show it, otherwise it isnt found and it will return an empty object
+	if (project && projectHasUser) {
+		await Grid.destroy({
+			where: {
+				projectId: projectID
+			}
+		});
+		await Typography.destroy({
+			where: {
+				projectId: projectID
+			}
+		});
+		await Color.destroy({
+			where: {
+				projectId: projectID
+			}
+		});
+		project.destroy();
+	}
+};
+
 module.exports = {
 	getAllProjects,
 	getSingleProject,
 	addNewUserToProject,
-	createNewProject
+	createNewProject,
+	deleteProject
 };
