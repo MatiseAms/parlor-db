@@ -18,7 +18,7 @@ NODE_ENV = development
 HOST = localhost:3000
 ```
 
-To start a server
+To start a server enter the src folder
 
 ```bash
 npm run dev
