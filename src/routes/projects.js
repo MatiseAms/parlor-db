@@ -1,5 +1,5 @@
 const { isLoggedIn, projects } = require('../methods');
-const { getAllProjects, getSingleProject, addNewUserToProject, createNewProject } = projects;
+const { getAllProjects, getSingleProject, addNewUserToProject, createNewProject, deleteProject } = projects;
 
 module.exports = (app) => {
 	/**
@@ -56,4 +56,9 @@ module.exports = (app) => {
 	 * @param {Int} req.body.name - Project name
 	 */
 	app.post('/newproject', isLoggedIn, createNewProject);
+
+	app.delete('/delete/:id', isLoggedIn, async (req, res) => {
+		await deleteProject(req.user.id, req.params.id);
+		res.send('ok');
+	});
 };
