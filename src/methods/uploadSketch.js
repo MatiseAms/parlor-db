@@ -482,7 +482,6 @@ const scanAllData = async (req, res, option) => {
 				break;
 			case 'colors':
 				data = await scanAllColors(projectId, fileNames);
-				console.log(data);
 				break;
 		}
 		if (data.code !== 3) {
@@ -764,7 +763,6 @@ const scanAllColors = async (projectId, fileNames) => {
 
 			if (documentData) {
 				const rawColors = documentData.assets.colorAssets;
-				console.log(rawColors);
 				if (rawColors) {
 					rawColors.forEach((colorObject) => {
 						const color = colorObject.color;
