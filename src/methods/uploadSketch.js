@@ -73,6 +73,7 @@ const uploadSketchFiles = async (req, res, next) => {
 					await project.update({
 						version,
 						gridStatus: false,
+						fontStatus: false,
 						colorStatus: false,
 						typoStatus: false
 					});
@@ -366,6 +367,9 @@ const uploadFonts = async (req, res) => {
 				});
 			} else {
 				if (req.files) {
+					project.update({
+						fontStatus: true
+					});
 					res.status(201).json({
 						code: 0,
 						message: 'Upload was succesful'
@@ -412,7 +416,8 @@ const unzipSketchFiles = async (req, res) => {
  * @param {Int} req.params.id - Project ID
  * @return Express response
  */
-const scanAllData = async (req, res) => {
+const scanAllData = async (req, res, option) => {
+	const resOrBool = option;
 	//element is what scan should be perfmred
 	const element = req.params.element;
 	//
@@ -466,6 +471,11 @@ const scanAllData = async (req, res) => {
 		switch (element) {
 			case 'typo':
 				data = await scanAllTypo(projectId, fileNames);
+				if (data.missingFonts && !data.missingFonts.length) {
+					project.update({
+						fontStatus: true
+					});
+				}
 				break;
 			case 'grid':
 				data = await scanGrid(projectId, fileNames);
@@ -475,11 +485,15 @@ const scanAllData = async (req, res) => {
 				break;
 		}
 		if (data.code !== 3) {
-			res.status(200).json({
-				code: 0,
-				message: 'Scan succesful',
-				data
-			});
+			if (resOrBool) {
+				res.status(200).json({
+					code: 0,
+					message: 'Scan succesful',
+					data
+				});
+			} else {
+				return true;
+			}
 		} else {
 			res.status(202).json({
 				code: 1,
@@ -685,7 +699,6 @@ const scanAllTypo = async (projectId, fileNames) => {
 			return font;
 		}
 	});
-
 	const allFonts = await Promise.all(
 		fonts.map(async (font) => {
 			const fontExist = await Typography.findOne({

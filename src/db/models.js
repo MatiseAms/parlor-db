@@ -65,6 +65,9 @@ const Project = Database.define('project', {
 	},
 	typoStatus: {
 		type: Sequelize.BOOLEAN
+	},
+	fontStatus: {
+		type: Sequelize.BOOLEAN
 	}
 });
 
