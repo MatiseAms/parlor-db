@@ -418,6 +418,7 @@ const unzipSketchFiles = async (req, res) => {
  */
 const scanAllData = async (req, res, option) => {
 	const resOrBool = option;
+	const query = req.query.scan;
 	//element is what scan should be perfmred
 	const element = req.params.element;
 	//
@@ -470,11 +471,31 @@ const scanAllData = async (req, res, option) => {
 		let data;
 		switch (element) {
 			case 'typo':
-				data = await scanAllTypo(projectId, fileNames);
-				if (data.missingFonts && !data.missingFonts.length) {
-					project.update({
-						fontStatus: true
+				if (query) {
+					//query means we dont need to scan thins
+					data = await scanAllTypo(projectId, fileNames);
+					if (data.missingFonts && !data.missingFonts.length) {
+						project.update({
+							fontStatus: true
+						});
+					}
+				} else {
+					const typo = await Typography.findAll({
+						raw: true,
+						where: {
+							projectId
+						}
 					});
+					const allfontFamilies = [...new Set(typo.map((font) => font.family))];
+					const missingFonts = allfontFamilies.filter((font) => {
+						if (!fs.existsSync(`./uploads/projects/${projectId}/fonts/${font.toLowerCase()}`)) {
+							return font;
+						}
+					});
+					data = {
+						fonts: typo,
+						missingFonts
+					};
 				}
 				break;
 			case 'grid':
@@ -486,10 +507,12 @@ const scanAllData = async (req, res, option) => {
 		}
 		if (data.code !== 3) {
 			if (resOrBool) {
+				console.log(data);
 				res.status(200).json({
 					code: 0,
 					message: 'Scan succesful',
-					data
+					data,
+					projectTitle: project.name
 				});
 			} else {
 				return true;
@@ -772,6 +795,7 @@ const scanAllColors = async (projectId, fileNames) => {
 							b: Math.round(color.blue * 255),
 							a: color.alpha
 						});
+
 						if (!values.includes(colorInstance.hexToCss)) {
 							values.push(colorInstance.hexToCss);
 							let double = false;
@@ -780,9 +804,7 @@ const scanAllColors = async (projectId, fileNames) => {
 								double = true;
 								colorsSet[indexOf].doubleName = true;
 							}
-
-							colorNames.push(colorObject);
-
+							colorNames.push(colorInstance.colorName);
 							colorsSet.push({
 								name: colorObject.name || colorInstance.colorName,
 								ogName: colorInstance.colorName,
