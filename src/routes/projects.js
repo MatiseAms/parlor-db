@@ -1,5 +1,13 @@
 const { isLoggedIn, projects } = require('../methods');
-const { getAllProjects, getSingleProject, addNewUserToProject, createNewProject, deleteProject } = projects;
+const { hostname } = require('../config');
+const {
+	getAllProjects,
+	getSingleProject,
+	addNewUserToProject,
+	createNewProject,
+	deleteProject,
+	getProjectImages
+} = projects;
 
 module.exports = (app) => {
 	/**
@@ -31,6 +39,33 @@ module.exports = (app) => {
 		const project = await getSingleProject(req.user.id, req.params.id);
 		if (project) {
 			res.send(project);
+		} else {
+			res.status(404).json({
+				code: 3,
+				message: 'No project found with this ID'
+			});
+		}
+	});
+
+	/**
+	 * Single project
+	 * @type GET
+	 * @middleware isLoggedIn
+	 * @param {Int} req.user.id - User session ID
+	 * @param {Int} req.params.id - Project ID
+	 */
+	app.get('/project/:id/images', isLoggedIn, async (req, res) => {
+		const projectImages = await getProjectImages(req.user.id, req.params.id);
+		if (projectImages) {
+			const images = projectImages.images.map((image) => {
+				const img = image.split('./')[1];
+				return `${hostname}/${img}`;
+			});
+			res.send({
+				code: 0,
+				images,
+				title: projectImages.project.name
+			});
 		} else {
 			res.status(404).json({
 				code: 3,

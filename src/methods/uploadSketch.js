@@ -507,7 +507,6 @@ const scanAllData = async (req, res, option) => {
 		}
 		if (data.code !== 3) {
 			if (resOrBool) {
-				console.log(data);
 				res.status(200).json({
 					code: 0,
 					message: 'Scan succesful',
