@@ -282,28 +282,23 @@ const getProjectImages = async (userID, projectID) => {
 		const projectFiles = fs.readdirSync(projectFolders);
 		const fileNames = [];
 		if (projectFiles) {
-			const all = projectFiles
-				.map((file) => {
-					const projectFolder = `${projectFolders}${file}/images/`;
-					if (fs.existsSync(projectFolder)) {
-						const imageFiles = fs.readdirSync(projectFolder);
-						fileNames.push(imageFiles);
-						const imgFiles = imageFiles
-							.map((file) => {
-								if (!fileNames.includes(file)) {
-									fileNames.push(file);
-									return `${projectFolder}${file}`;
-								}
-							})
-							.filter((file) => file);
-						return imgFiles;
-					}
-				})
-				.flat()
-				.filter((file) => file);
+			const all = [];
+			projectFiles.forEach((file) => {
+				const projectFolder = `${projectFolders}${file}/images/`;
+				if (fs.existsSync(projectFolder)) {
+					const imageFiles = fs.readdirSync(projectFolder);
+					fileNames.push(imageFiles);
+					imageFiles.forEach((file) => {
+						if (!fileNames.includes(file)) {
+							fileNames.push(file);
+							all.push(`${projectFolder}${file}`);
+						}
+					});
+				}
+			});
 			return {
 				images: all,
-				project: project
+				project
 			};
 		}
 	}
