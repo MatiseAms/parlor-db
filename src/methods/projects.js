@@ -1,6 +1,7 @@
 const { models, db } = require('../db');
 const { Project, User, Color, Typography, Grid } = models;
 const { Sequelize } = db;
+const fs = require('fs');
 const Op = Sequelize.Op;
 /**
  * get All projects
@@ -254,10 +255,65 @@ const deleteProject = async (userID, projectID) => {
 	}
 };
 
+/**
+ * getProjectImages
+ * @type Functiob
+ * @param {Int} userID - User session ID
+ * @param {Int} projectID - Project ID
+ * @return {Object || false}
+ */
+const getProjectImages = async (userID, projectID) => {
+	//find the project and check if we have access with our userID
+	const project = await Project.findOne({
+		where: {
+			id: projectID
+		}
+	});
+
+	if (!project) {
+		return false;
+	}
+
+	const user = await User.findByPk(userID);
+	const projectHasUser = await project.hasUser(user);
+	//if there is a proejct iwth the right id and the right user show it, otherwise it isnt found and it will return an empty object
+	if (project && projectHasUser) {
+		const projectFolders = `./uploads/projects/${projectID}/${project.version}/unzip/`;
+		const projectFiles = fs.readdirSync(projectFolders);
+		const fileNames = [];
+		if (projectFiles) {
+			const all = projectFiles
+				.map((file) => {
+					const projectFolder = `${projectFolders}${file}/images/`;
+					if (fs.existsSync(projectFolder)) {
+						const imageFiles = fs.readdirSync(projectFolder);
+						fileNames.push(imageFiles);
+						const imgFiles = imageFiles
+							.map((file) => {
+								if (!fileNames.includes(file)) {
+									fileNames.push(file);
+									return `${projectFolder}${file}`;
+								}
+							})
+							.filter((file) => file);
+						return imgFiles;
+					}
+				})
+				.flat()
+				.filter((file) => file);
+			return {
+				images: all,
+				project: project
+			};
+		}
+	}
+};
+
 module.exports = {
 	getAllProjects,
 	getSingleProject,
 	addNewUserToProject,
 	createNewProject,
-	deleteProject
+	deleteProject,
+	getProjectImages
 };
