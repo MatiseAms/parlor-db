@@ -2,7 +2,6 @@ const bcrypt = require('bcrypt');
 const { isLoggedIn, logOut } = require('../methods');
 const { models } = require('../db');
 const { User } = models;
-const { getUserInfo } = require('../methods');
 
 const { uploadImage } = require('../methods');
 const { clearFolderOnUpload, upload } = uploadImage;

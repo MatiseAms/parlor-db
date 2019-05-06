@@ -68,7 +68,6 @@ const getSingleProject = async (userID, projectID) => {
 			id: projectID
 		}
 	});
-
 	if (!project) {
 		return false;
 	}

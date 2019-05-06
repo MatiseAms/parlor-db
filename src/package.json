@@ -24,6 +24,7 @@
 		"prettier": "^1.16.4"
 	},
 	"dependencies": {
+		"adm-zip": "^0.4.13",
 		"bcrypt": "^3.0.5",
 		"connect-session-sequelize": "^6.0.0",
 		"cookie-parser": "^1.4.4",
