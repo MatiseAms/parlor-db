@@ -1,7 +1,7 @@
 const { projects } = require('../methods');
 const { getSingleProject } = projects;
 const { models } = require('../db');
-const { Typography } = models;
+const { Typography, Project } = models;
 const stream = require('stream');
 const fs = require('fs');
 
@@ -19,8 +19,14 @@ module.exports = (app, passport) => {
 			if (user) {
 				req.logIn(user, async (err) => {
 					if (err) return next(err);
-					const project = await getSingleProject(user.id, projectId);
-					res.send(project);
+					const project = await Project.findByPk(projectId);
+					const projectHasUser = await project.hasUser(user);
+					if (projectHasUser) {
+						const projects = await getSingleProject(user.id, projectId);
+						res.send(projects);
+					} else {
+						res.send(false);
+					}
 				});
 			} else {
 				res.status(400).json(info);
@@ -40,34 +46,38 @@ module.exports = (app, passport) => {
 				req.logIn(user, async (err) => {
 					if (err) return next(err);
 					try {
-						const typo = await Typography.findAll({
-							raw: true,
-							where: {
-								projectId
-							}
-						});
-
-						const allfontFamilies = [...new Set(typo.map((font) => font.family))];
-						let zip = new AdmZip();
-						allfontFamilies.forEach((font) => {
-							const folder = `./uploads/projects/${projectId}/fonts/${font.toLowerCase()}`;
-
-							const files = fs.readdirSync(folder);
-							files.forEach((file) => {
-								zip.addLocalFile(`${folder}/${file}`);
+						const project = await Project.findByPk(projectId);
+						const projectHasUser = await project.hasUser(user);
+						if (projectHasUser) {
+							const typo = await Typography.findAll({
+								raw: true,
+								where: {
+									projectId
+								}
 							});
-						});
-						var willSendthis = zip.toBuffer();
-						// res.download(willSendthis);
-						// var fileContents = Buffer.from(fileData, "base64");
 
-						var readStream = new stream.PassThrough();
-						readStream.end(willSendthis);
+							const allfontFamilies = [...new Set(typo.map((font) => font.family))];
+							let zip = new AdmZip();
+							allfontFamilies.forEach((font) => {
+								const folder = `./uploads/projects/${projectId}/fonts/${font.toLowerCase()}`;
 
-						res.set('Content-disposition', 'attachment; filename=' + projectId);
-						res.set('Content-Type', 'text/plain');
+								const files = fs.readdirSync(folder);
+								files.forEach((file) => {
+									zip.addLocalFile(`${folder}/${file}`);
+								});
+							});
+							var willSendthis = zip.toBuffer();
+							// res.download(willSendthis);
+							// var fileContents = Buffer.from(fileData, "base64");
 
-						readStream.pipe(res);
+							var readStream = new stream.PassThrough();
+							readStream.end(willSendthis);
+
+							res.set('Content-disposition', 'attachment; filename=' + projectId);
+							res.set('Content-Type', 'text/plain');
+
+							readStream.pipe(res);
+						}
 					} catch (e) {
 						res.send(false);
 					}
