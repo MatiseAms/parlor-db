@@ -672,18 +672,30 @@ const scanAllTypo = async (projectId, fileNames) => {
 		const allSizes = allValues.map((typo) => typo.size);
 		const allfontFamilies = allValues.map((typo) => typo.fontFamily);
 		const uniqueFonts = [...new Set(allfontFamilies)];
-		const fontObj = uniqueFonts
-			.map((font) => {
-				if (font.toLowerCase().indexOf('-ita') === -1) {
-					const fontSplit = font.split('-');
-					const fontWeight = fontSplit[1] || 'Regular';
-					return {
-						fontFamily: fontSplit[0],
-						fontWeight
-					};
+		const setWithKeys = (array, key = 'key') => {
+			return array.filter((r, index) => {
+				const indexOf = array.findIndex((a) => a[key] === r[key]);
+				if (indexOf >= index) {
+					return true;
 				}
-			})
-			.filter((font) => font);
+			});
+		};
+		const fontObj = setWithKeys(
+			uniqueFonts
+				.map((font) => {
+					if (font.toLowerCase().indexOf('-ita') === -1) {
+						const fontSplit = font.split('-');
+						console.log(fontSplit);
+						const fontWeight = fontSplit[1] || 'Regular';
+						return {
+							fontFamily: fontSplit[0],
+							fontWeight
+						};
+					}
+				})
+				.filter((font) => font),
+			'fontWeight'
+		);
 		const colors = [...new Set(allValues.map((typo) => typo.color))];
 		//we can assume that a typo setting has the same font but different weights.
 		const minSize = Math.min(...allSizes);
@@ -703,7 +715,7 @@ const scanAllTypo = async (projectId, fileNames) => {
 		if (minLineheight === maxLineheigt) {
 			lineheight = minLineheight;
 		} else {
-			lineheight = (maxLineheigt + minLineheight) / 2;
+			lineheight = ~~(((maxLineheigt + minLineheight) / 2) * 1000) / 1000;
 		}
 		return {
 			key,
