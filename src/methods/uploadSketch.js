@@ -685,7 +685,6 @@ const scanAllTypo = async (projectId, fileNames) => {
 				.map((font) => {
 					if (font.toLowerCase().indexOf('-ita') === -1) {
 						const fontSplit = font.split('-');
-						console.log(fontSplit);
 						const fontWeight = fontSplit[1] || 'Regular';
 						return {
 							fontFamily: fontSplit[0],
